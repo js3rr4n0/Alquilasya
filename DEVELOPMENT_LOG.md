@@ -54,5 +54,16 @@
    - Applied custom Google Fonts (`Playfair Display` and `DM Sans`) globally via `src/app/layout.tsx`.
    - Replaced generic styling with the custom color palette (CREAM, BLACK, ORANGE).
 
-4. **Version Control**:
    - Initialized Git, connected the remote `js3rr4n0/Alquilasya.git`, committed "version 1", and pushed the code base.
+
+## Log Entry: 2026-05-26 20:56:00 -06:00
+### Action: Branding and Iconography Updates
+
+**Details:**
+1. **Logo Typography**:
+   - Updated the `<Logo />` component in `src/components/LandingPage.tsx` to display "ALQUILASYA" entirely in uppercase for stronger brand presence.
+
+2. **Dynamic Favicon (`icon.tsx`)**:
+   - Leveraged Next.js 14 App Router's dynamic image generation (`next/og`) to programmatically create the Chrome browser tab icon (`src/app/icon.tsx`).
+   - Configured the icon to display "A" in pure white and "Y" in the brand's Terracotta/Orange (`#D4541A`) over a deep black background (`#0A0A0A`) for maximum contrast and legibility at 32x32px.
+   - Removed the default Next.js `favicon.ico` to prevent rendering conflicts and ensure edge-rendering of the new SVG-like dynamic icon.

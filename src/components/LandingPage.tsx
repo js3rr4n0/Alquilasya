@@ -12,15 +12,29 @@ const GRAY = "#888888";
 
 function Logo({ light = false }: { light?: boolean }) {
   return (
-    <motion.span 
+    <motion.div 
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.6 }}
-      style={{ fontFamily: 'var(--font-playfair)', fontWeight: 900, fontSize: "22px", letterSpacing: "-0.03em" }}
+      className="flex flex-col"
     >
-      <span style={{ color: light ? CREAM : BLACK }}>ALQUILAS</span>
-      <span style={{ color: ORANGE }}>YA</span>
-    </motion.span>
+      <div style={{ fontFamily: 'var(--font-playfair)', fontWeight: 900, fontSize: "28px", letterSpacing: "-0.06em", lineHeight: 1 }}>
+        <span style={{ color: light ? CREAM : BLACK }}>Alquilas</span>
+        <span style={{ color: ORANGE }}>Ya</span>
+      </div>
+      <div 
+        style={{ 
+          fontFamily: 'var(--font-dmsans)', 
+          fontSize: "9px", 
+          fontWeight: 700, 
+          letterSpacing: "0.18em", 
+          color: '#888888',
+          marginTop: "4px"
+        }}
+      >
+        PORTAL DE ALQUILER &middot; EL SALVADOR
+      </div>
+    </motion.div>
   );
 }
 
