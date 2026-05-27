@@ -18,6 +18,7 @@ export default function Icon() {
           borderRadius: '6px', // Slight rounding
           fontFamily: 'serif',
           fontWeight: 900,
+          fontStyle: 'italic',
           fontSize: 22,
           letterSpacing: '-0.05em'
         }}
