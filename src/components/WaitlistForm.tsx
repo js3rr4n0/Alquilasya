@@ -30,7 +30,7 @@ const DEPARTAMENTOS = [
 
 export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isSuccess, setIsSuccess] = useState(false);
-  
+
   // Integrating react-hook-form with Zod for robust validation
   const {
     register,
@@ -97,7 +97,7 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
         {/* Name Field */}
         <div className="space-y-2">
           <label htmlFor="nombre" className="text-sm font-semibold text-gray-700 block">
-            Nombre (Solo de pila)
+            Nombre y Apellido
           </label>
           <input
             id="nombre"
@@ -133,22 +133,20 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
             <button
               type="button"
               onClick={() => setValue('tipo_usuario', 'inquilino', { shouldValidate: true })}
-              className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${
-                selectedTipo === 'inquilino'
+              className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${selectedTipo === 'inquilino'
                   ? 'bg-black text-white border-black shadow-md'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             >
               Inquilino
             </button>
             <button
               type="button"
               onClick={() => setValue('tipo_usuario', 'propietario', { shouldValidate: true })}
-              className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${
-                selectedTipo === 'propietario'
+              className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${selectedTipo === 'propietario'
                   ? 'bg-black text-white border-black shadow-md'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             >
               Propietario
             </button>
