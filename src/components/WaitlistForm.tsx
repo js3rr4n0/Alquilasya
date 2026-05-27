@@ -102,7 +102,7 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
           <input
             id="nombre"
             type="text"
-            placeholder="Ej. Carlos"
+            placeholder="Ej. Carlos Martinez"
             className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-black focus:border-transparent transition-all outline-none"
             {...register('nombre')}
           />
@@ -134,8 +134,8 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
               type="button"
               onClick={() => setValue('tipo_usuario', 'inquilino', { shouldValidate: true })}
               className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${selectedTipo === 'inquilino'
-                  ? 'bg-black text-white border-black shadow-md'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                ? 'bg-black text-white border-black shadow-md'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
             >
               Inquilino
@@ -144,8 +144,8 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
               type="button"
               onClick={() => setValue('tipo_usuario', 'propietario', { shouldValidate: true })}
               className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${selectedTipo === 'propietario'
-                  ? 'bg-black text-white border-black shadow-md'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                ? 'bg-black text-white border-black shadow-md'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
             >
               Propietario
