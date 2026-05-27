@@ -18,8 +18,8 @@ function Logo({ light = false }: { light?: boolean }) {
       transition={{ duration: 0.6 }}
       style={{ fontFamily: 'var(--font-playfair)', fontWeight: 900, fontSize: "22px", letterSpacing: "-0.03em" }}
     >
-      <span style={{ color: light ? CREAM : BLACK }}>Alquilas</span>
-      <span style={{ color: ORANGE }}>Ya</span>
+      <span style={{ color: light ? CREAM : BLACK }}>ALQUILAS</span>
+      <span style={{ color: ORANGE }}>YA</span>
     </motion.span>
   );
 }
