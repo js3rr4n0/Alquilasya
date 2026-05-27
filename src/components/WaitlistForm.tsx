@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 // Zod schema for client-side validation, ensuring data integrity before network request
 const formSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
-  whatsapp: z.string().min(8, 'Número inválido').max(30, 'Número inválido'),
+  whatsapp: z.string().regex(/^\+?[0-9\s\-]{8,20}$/, 'Número de WhatsApp inválido'),
   tipo_usuario: z.enum(['inquilino', 'propietario'], {
     message: 'Selecciona una opción',
   }),
@@ -30,6 +30,16 @@ const DEPARTAMENTOS = [
 
 export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isSuccess, setIsSuccess] = useState(false);
+  const [origen, setOrigen] = useState('organico');
+
+  useEffect(() => {
+    // We use window.location.search inside useEffect to safely grab the 'ref' param without breaking Next.js hydration
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      if (ref) setOrigen(ref);
+    }
+  }, []);
 
   // Integrating react-hook-form with Zod for robust validation
   const {
@@ -50,12 +60,13 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
 
   const onSubmit = async (data: FormData) => {
     try {
+      const payload = { ...data, origen };
       const response = await fetch('/api/waitlist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
