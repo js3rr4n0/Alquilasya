@@ -329,8 +329,7 @@ function FormSection({
                       margin: "0 auto",
                     }}
                   >
-                    Te escribimos por WhatsApp en cuanto abramos tu zona.
-                    Gracias por confiar.
+                    Te escribimos por WhatsApp en cuanto abramos. Gracias por confiar.
                   </p>
                 </motion.div>
               ) : (
