@@ -12,7 +12,7 @@ const formSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
   whatsapp: z.string().min(8, 'Número inválido').max(30, 'Número inválido'),
   tipo_usuario: z.enum(['inquilino', 'propietario'], {
-    required_error: 'Selecciona una opción',
+    message: 'Selecciona una opción',
   }),
   departamento: z.string().min(1, 'Selecciona tu departamento').max(100),
   email: z.string().email('Ingresa un correo válido').max(255),

@@ -8,7 +8,7 @@ const waitlistSchema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio').max(100, 'El nombre es demasiado largo'),
   whatsapp: z.string().min(8, 'Número de WhatsApp inválido').max(30, 'Número de WhatsApp inválido'),
   tipo_usuario: z.enum(['inquilino', 'propietario'], {
-    required_error: 'Debe seleccionar si es inquilino o propietario',
+    message: 'Debe seleccionar si es inquilino o propietario',
   }),
   departamento: z.string().min(2, 'Debe seleccionar un departamento').max(100),
   email: z.string().email('Debe ser un correo electrónico válido').max(255),
