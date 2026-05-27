@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     
     if (!validationResult.success) {
       // Mapping Zod errors to a readable format
-      const errors = validationResult.error.errors.map(err => err.message).join(', ');
+      const errors = validationResult.error.issues.map(err => err.message).join(', ');
       return NextResponse.json({ error: errors }, { status: 400 });
     }
 
