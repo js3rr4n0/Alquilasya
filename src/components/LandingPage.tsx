@@ -260,7 +260,7 @@ function FormSection({
 
             <div className="mt-12 pt-8" style={{ borderTop: `1px solid rgba(10,10,10,0.12)` }}>
               <div className="mb-3">
-                <Label>Prueba social</Label>
+                <Label>Pre-regístrate ya</Label>
               </div>
               <motion.p
                 key={count} // Retriggers animation when count changes
