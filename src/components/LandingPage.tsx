@@ -488,7 +488,7 @@ function PreviewSection() {
             <PreviewCard
               tag="Nuevo"
               zone="Colonia Escalón · S.S."
-              price="$450"
+              price="$350"
               desc="Apartamento 2 hab. amueblado, balcón con vista, parqueo techado. A 5 min del Paseo."
               bg="url('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80')"
             />
