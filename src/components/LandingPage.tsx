@@ -255,8 +255,7 @@ function FormSection({
               }}
             >
               Estamos construyendo AlquilasYa con calma y con criterio. Apuntate
-              a la lista y te avisamos por WhatsApp cuando abramos el acceso en
-              tu departamento.
+              a la lista y te avisamos por WhatsApp cuando abramos el acceso.
             </p>
 
             <div className="mt-12 pt-8" style={{ borderTop: `1px solid rgba(10,10,10,0.12)` }}>
