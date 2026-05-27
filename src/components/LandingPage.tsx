@@ -488,7 +488,7 @@ function PreviewSection() {
             <PreviewCard
               tag="Nuevo"
               zone="Colonia Escalón · S.S."
-              price="$650"
+              price="$450"
               desc="Apartamento 2 hab. amueblado, balcón con vista, parqueo techado. A 5 min del Paseo."
               bg="url('https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80')"
             />
@@ -497,7 +497,7 @@ function PreviewSection() {
             <PreviewCard
               tag="Destacado"
               zone="Santa Tecla · La Libertad"
-              price="$420"
+              price="$220"
               desc="Casa 3 hab. con jardín, zona tranquila. Cerca de comercios y transporte."
               bg="url('https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80')"
             />
@@ -506,7 +506,7 @@ function PreviewSection() {
             <PreviewCard
               tag="Verificado"
               zone="El Tunco · La Libertad"
-              price="$850"
+              price="$250"
               desc="Casa de playa, 2 hab., 3 min caminando al mar. Ideal para temporada o anual."
               bg="url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80')"
             />
