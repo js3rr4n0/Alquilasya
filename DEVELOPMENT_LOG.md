@@ -67,3 +67,23 @@
    - Leveraged Next.js 14 App Router's dynamic image generation (`next/og`) to programmatically create the Chrome browser tab icon (`src/app/icon.tsx`).
    - Configured the icon to display "A" in pure white and "Y" in the brand's Terracotta/Orange (`#D4541A`) over a deep black background (`#0A0A0A`) for maximum contrast and legibility at 32x32px.
    - Removed the default Next.js `favicon.ico` to prevent rendering conflicts and ensure edge-rendering of the new SVG-like dynamic icon.
+
+## Log Entry: 2026-05-26 20:58:00 -06:00
+### Action: Logo Redesign based on Visual Mockup
+
+**Details:**
+1. **Typography Correction**:
+   - Reverted the all-caps logo to PascalCase ("AlquilasYa") to match the provided visual identity.
+   - Applied tight kerning (`letterSpacing: "-0.06em"`) to emulate the connected logotype feel.
+
+2. **Lockup Subtitle Addition**:
+   - Integrated the "PORTAL DE ALQUILER · EL SALVADOR" subtitle directly into the `<Logo />` component.
+
+## Log Entry: 2026-05-26 21:00:00 -06:00
+### Action: Responsive Logo Scaling
+
+**Details:**
+1. **Responsive Size Adjustments**:
+   - Upgraded the `<Logo />` component to use CSS `clamp()` for fluid typography scaling across devices.
+   - The main logo text scales dynamically from `42px` on mobile up to `72px` on large screens (`clamp(42px, 6vw, 72px)`).
+   - The subtitle scales proportionally from `10px` to `16px`, maintaining the lockup ratio on tablets and mobile without breaking layout constraints.

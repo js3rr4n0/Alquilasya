@@ -12,24 +12,32 @@ const GRAY = "#888888";
 
 function Logo({ light = false }: { light?: boolean }) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.6 }}
       className="flex flex-col"
     >
-      <div style={{ fontFamily: 'var(--font-playfair)', fontWeight: 900, fontSize: "28px", letterSpacing: "-0.06em", lineHeight: 1 }}>
+      <div
+        style={{
+          fontFamily: 'var(--font-playfair)',
+          fontWeight: 900,
+          fontSize: "clamp(42px, 6vw, 72px)",
+          letterSpacing: "-0.06em",
+          lineHeight: 1
+        }}
+      >
         <span style={{ color: light ? CREAM : BLACK }}>Alquilas</span>
         <span style={{ color: ORANGE }}>Ya</span>
       </div>
-      <div 
-        style={{ 
-          fontFamily: 'var(--font-dmsans)', 
-          fontSize: "9px", 
-          fontWeight: 700, 
-          letterSpacing: "0.18em", 
+      <div
+        style={{
+          fontFamily: 'var(--font-dmsans)',
+          fontSize: "clamp(10px, 1.5vw, 16px)",
+          fontWeight: 700,
+          letterSpacing: "0.18em",
           color: '#888888',
-          marginTop: "4px"
+          marginTop: "8px"
         }}
       >
         PORTAL DE ALQUILER &middot; EL SALVADOR
@@ -90,7 +98,7 @@ function HeroSection() {
       <div className="max-w-[1240px] mx-auto px-8 md:px-16 pt-10 pb-24 md:pt-12 md:pb-32 relative">
         <nav className="flex items-center justify-between mb-20 md:mb-28">
           <Logo light />
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
             className="hidden md:block"
           >
@@ -98,7 +106,7 @@ function HeroSection() {
           </motion.div>
         </nav>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="mb-6"
         >
@@ -140,7 +148,7 @@ function HeroSection() {
           escondidas. Sin trámites eternos.
         </motion.p>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7, duration: 1 }}
           className="mt-16 grid grid-cols-3 gap-8 max-w-[680px]"
         >
@@ -149,7 +157,7 @@ function HeroSection() {
             { n: "0%", l: "Comisión escondida" },
             { n: "100%", l: "Local" },
           ].map((item, i) => (
-            <motion.div 
+            <motion.div
               key={item.l}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -213,7 +221,7 @@ function FormSection({
 
       <div className="max-w-[1240px] mx-auto px-8 md:px-16 py-24 md:py-32 relative">
         <div className="grid md:grid-cols-12 gap-12 md:gap-16">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -274,7 +282,7 @@ function FormSection({
             </div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -290,7 +298,7 @@ function FormSection({
               }}
             >
               {submitted ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="py-16 text-center"
@@ -436,7 +444,7 @@ function PreviewSection() {
   return (
     <section style={{ background: CREAM, paddingBottom: "120px" }}>
       <div className="max-w-[1240px] mx-auto px-8 md:px-16">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -519,8 +527,8 @@ function Footer() {
       <div className="max-w-[1240px] mx-auto px-8 md:px-16 py-16 flex flex-wrap items-center justify-between gap-8">
         <Logo light />
         <div className="flex gap-8 flex-wrap">
-          <Label color={CREAM}>San Salvador · ES</Label>
-          <Label color={CREAM}>hola@alquilasya.sv</Label>
+          <Label color={CREAM}>El Salvador · ES</Label>
+          <Label color={CREAM}>contacto@alquilasya.com</Label>
           <Label color={CREAM}>© 2026</Label>
         </div>
       </div>
