@@ -29,7 +29,7 @@ portada; no aparecen en los resultados.
 1. **Storage → Create Database → Neon (Postgres)** y conéctala al proyecto.
    Crea sola la variable `DATABASE_URL`.
 2. (Opcional) **Storage → Blob** para que quien publica pueda subir sus fotos.
-   Crea sola `BLOB_READ_WRITE_TOKEN`. Sin ella se usan fotos de muestra.
+   Elige acceso **Public**. Crea sola `BLOB_STORE_ID` (o `BLOB_READ_WRITE_TOKEN`). Sin almacén, los anuncios salen sin fotos.
 3. **Correo**: crea una cuenta en Resend, verifica el dominio y añade
    `RESEND_API_KEY` y `MAIL_FROM`. Sin esto nadie puede confirmar su cuenta.
 4. En **Settings → Environment Variables** añade `ADMIN_EMAILS` (tu correo),

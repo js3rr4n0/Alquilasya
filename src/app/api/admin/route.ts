@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { blobConfigured } from "@/server/blob";
 import { refreshPublicPages } from "@/server/http";
 import { adminOverview, setListingStatus } from "@/server/listings";
 import { mailConfigured } from "@/server/mail";
@@ -15,7 +16,7 @@ export const GET = endpoint({
     ...(await adminOverview()),
     services: {
       correo: mailConfigured(),
-      fotos: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+      fotos: blobConfigured(),
     },
   }),
 });
