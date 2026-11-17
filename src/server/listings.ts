@@ -172,8 +172,12 @@ export async function publishedIndex() {
   );
 }
 
-/** Una ficha por id. Las no publicadas solo las ve quien las subió. */
-export async function getListing(id: string, userId?: string | null): Promise<Listing | null> {
+/** Una ficha por id. Las no publicadas solo las ven quien las subió y el admin. */
+export async function getListing(
+  id: string,
+  userId?: string | null,
+  admin = false,
+): Promise<Listing | null> {
   const rows = await query<ListingRow & { user_id: string | null }>(
     `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id
        FROM listings WHERE id = $1`,
@@ -182,7 +186,8 @@ export async function getListing(id: string, userId?: string | null): Promise<Li
   const row = rows[0];
   if (!row) return null;
   const mine = Boolean(userId) && userId === row.user_id;
-  if (row.status !== "publicada" && !mine) return null;
+  // Lo no publicado lo ve su dueño; el admin también, para poder revisarlo.
+  if (row.status !== "publicada" && !mine && !admin) return null;
   return { ...toListing(row), isNew: mine || undefined };
 }
 
@@ -276,13 +281,16 @@ export async function createListing(input: ListingInput, owner: { id: string; em
 }
 
 /**
- * Edición por su dueño. Conserva la dirección (id) y el estado: un anuncio
+ * Edición por su dueño o por el admin. Conserva la dirección (id) y el estado: un anuncio
  * publicado sigue publicado y queda marcado como editado para revisión posterior.
  * Uno rechazado vuelve a revisión.
  */
-export async function updateListing(id: string, input: ListingInput, owner: { id: string; email: string }) {
+export async function updateListing(
+  id: string,
+  input: ListingInput,
+  editor: { id: string; email: string; admin?: boolean },
+) {
   const { data, columns } = await prepare(input);
-  columns[11] ??= owner.email;
   const rows = await query<{ id: string; status: ListingStatus }>(
     `UPDATE listings SET
         title = $2, type = $3, zone = $4, region = $5, bedrooms = $6, bathrooms = $7, area = $8,
@@ -291,15 +299,16 @@ export async function updateListing(id: string, input: ListingInput, owner: { id
         data = $18::jsonb,
         status = CASE WHEN status = 'rechazada' THEN 'pendiente' ELSE status END,
         edited_at = now(), updated_at = now()
-      WHERE id = $1 AND user_id = $19
+      WHERE id = $1 AND (user_id = $19 OR $20)
       RETURNING id, status`,
-    [id, ...columns, JSON.stringify({ ...data, id }), owner.id],
+    // El admin puede corregir cualquier anuncio; el dueño sigue siendo el mismo.
+    [id, ...columns, JSON.stringify({ ...data, id }), editor.id, Boolean(editor.admin)],
   );
   return rows[0] ?? null;
 }
 
-/** Lo que necesita el formulario para editar: la ficha y los datos de contacto. Solo para su dueño. */
-export async function getListingForEdit(id: string, userId: string) {
+/** Lo que necesita el formulario para editar: la ficha y los datos de contacto. Solo para su dueño o el admin. */
+export async function getListingForEdit(id: string, userId: string, admin = false) {
   const rows = await query<{
     data: Listing;
     status: ListingStatus;
@@ -308,8 +317,8 @@ export async function getListingForEdit(id: string, userId: string) {
     contact_email: string | null;
   }>(
     `SELECT data, status, contact_name, contact_whatsapp, contact_email
-       FROM listings WHERE id = $1 AND user_id = $2`,
-    [id, userId],
+       FROM listings WHERE id = $1 AND (user_id = $2 OR $3)`,
+    [id, userId, admin],
   );
   const row = rows[0];
   if (!row) return null;

@@ -21,7 +21,7 @@ const load = cache(async (rawId: string): Promise<Listing | null> => {
   if (!hasDatabase()) return null;
   try {
     const user = await currentUser();
-    return await getListing(id, user?.id);
+    return await getListing(id, user?.id, user?.admin);
   } catch (error) {
     console.error("casa/[id]", error);
     return null;
