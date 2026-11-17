@@ -14,6 +14,9 @@ export async function sendDailyNotices() {
       WHERE u.id = l.user_id AND u.email_notices AND l.status = 'publicada'
         AND l.featured_until > now() AND l.featured_until <= now() + interval '2 days'
         AND l.featured_notice_for IS DISTINCT FROM l.featured_until
+        -- Un destacado de 1 día recién pagado no necesita «vence pronto».
+        AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.listing_id = l.id AND p.status = 'pagada'
+                         AND p.days < 7 AND p.paid_at > now() - interval '3 days')
       RETURNING l.id, l.title, l.featured_until, u.email`,
   );
   let sent = 0;

@@ -280,7 +280,7 @@ export function Account() {
                         {featured(l) && " Los días se suman a los que ya tienes."}
                         {l.status === "pendiente" && " Al pagar, tu anuncio se publica de inmediato, sin esperar la revisión."}
                       </p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
                         {PLANS.map((p) => (
                           <button
                             key={p.id}
