@@ -28,6 +28,8 @@ const when = (v: string) =>
 export function AdminPayments() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
+  // Los enlaces sin pagar son normales (se preparan al abrir «Destacar»): ocultos por defecto.
+  const [showOpen, setShowOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/pagos")
@@ -59,7 +61,11 @@ export function AdminPayments() {
           </div>
         ))}
       </dl>
-      {data.payments.length === 0 ? (
+      <label className="flex items-center gap-2 text-[14px] text-grafito-700">
+        <input type="checkbox" checked={showOpen} onChange={(e) => setShowOpen(e.target.checked)} className="size-4 accent-terracota-600" />
+        Mostrar también los enlaces sin pagar
+      </label>
+      {data.payments.filter((p) => showOpen || p.status !== "pendiente").length === 0 ? (
         <p className="text-[16px] text-grafito-600">Nadie ha pagado un destacado todavía.</p>
       ) : (
         <div className="overflow-x-auto rounded-card bg-crema-050 ring-1 ring-arena-200">
@@ -72,7 +78,7 @@ export function AdminPayments() {
               </tr>
             </thead>
             <tbody className="divide-y divide-arena-200">
-              {data.payments.map((p) => (
+              {data.payments.filter((p) => showOpen || p.status !== "pendiente").map((p) => (
                 <tr key={p.id} className="align-top">
                   <td className="whitespace-nowrap px-4 py-3 tabular-nums text-grafito-700">{when(p.paid_at ?? p.created_at)}</td>
                   <td className="px-4 py-3">

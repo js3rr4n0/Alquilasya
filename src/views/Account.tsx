@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Plus } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, ButtonLink, Container, Switch } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
@@ -90,15 +90,34 @@ export function Account() {
     setBusy(false);
   }
 
+  // Wompi tarda varios segundos en crear un enlace de pago: se piden en cuanto se
+  // abre «Destacar», así al elegir un plan la página de pago abre al instante.
+  const links = useRef(new Map<string, Promise<{ ok: boolean; url?: string; error?: string }>>());
+  const requestLink = useCallback((listingId: string, plan: PlanId) => {
+    const key = `${listingId}:${plan}`;
+    let p = links.current.get(key);
+    if (!p) {
+      p = fetch("/api/pagos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId, plan }),
+      })
+        .then(async (res) => ({ ok: res.ok, ...((await res.json().catch(() => ({}))) as { url?: string; error?: string }) }))
+        .catch(() => ({ ok: false }));
+      links.current.set(key, p);
+      // Si falló, se puede volver a intentar.
+      p.then((r) => !r.ok && links.current.delete(key));
+    }
+    return p;
+  }, []);
+  useEffect(() => {
+    if (featuring) PLANS.forEach((p) => requestLink(featuring, p.id));
+  }, [featuring, requestLink]);
+
   async function pay(listingId: string, plan: PlanId) {
     setPaying(plan);
-    const res = await fetch("/api/pagos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, plan }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-    if (res.ok && data.url) {
+    const data = await requestLink(listingId, plan);
+    if (data.ok && data.url) {
       window.location.assign(data.url);
       return;
     }

@@ -183,8 +183,9 @@ export function PlanEditor({
           y: 0,
           w: 4,
           h: 3.5,
-          photos: ["dormMinimal", "camaRayas"],
-          features: ["Cama queen", "Clóset"],
+          // Sin fotos ni detalles de muestra: todo lo pone quien publica.
+          photos: [],
+          features: [],
         },
       ],
     };

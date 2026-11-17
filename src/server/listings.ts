@@ -175,7 +175,8 @@ export async function getListing(
   admin = false,
 ): Promise<Listing | null> {
   const rows = await query<ListingRow & { user_id: string | null }>(
-    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id
+    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id,
+            (featured_until > now()) IS TRUE AS promoted
        FROM listings WHERE id = $1`,
     [id],
   );

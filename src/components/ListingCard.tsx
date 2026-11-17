@@ -81,8 +81,11 @@ export function ListingCard({
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
       className={cx(
-        "group relative flex flex-col overflow-hidden rounded-card bg-crema-050 ring-1 transition-[box-shadow,transform] duration-300",
-        active ? "ring-negro" : "ring-arena-200 hover:ring-piedra-250",
+        "group relative flex flex-col overflow-hidden rounded-card bg-crema-050 transition-[box-shadow,transform] duration-300",
+        // Destacado: borde de marca más grueso, para reconocerlo de un vistazo.
+        listing.promoted
+          ? cx("ring-2", active ? "ring-negro" : "ring-terracota-600")
+          : cx("ring-1", active ? "ring-negro" : "ring-arena-200 hover:ring-piedra-250"),
         className,
       )}
     >
@@ -102,6 +105,14 @@ export function ListingCard({
           className="size-full object-cover transition-transform duration-[900ms] ease-umbral group-hover:scale-[1.035]"
         />
       </Link>
+      {listing.promoted && (
+        <span
+          className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-terracota-600 px-2.5 py-1 text-[13px] font-semibold text-crema-100 shadow-[0_2px_10px_-2px_rgb(10_10_10/0.45)]"
+          title="Anuncio pagado por el propietario para aparecer primero. No cambia el precio ni las condiciones."
+        >
+          <span aria-hidden>★</span> Destacado
+        </span>
+      )}
       <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
         <div className="flex items-start justify-between gap-2">
           <Link to={href} className="min-w-0 outline-offset-4">
