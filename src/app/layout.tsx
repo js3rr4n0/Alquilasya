@@ -46,9 +46,11 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
   // Código de Google Search Console (variable GOOGLE_SITE_VERIFICATION).
-  verification: process.env.GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    // Bing Webmasters (también hay public/BingSiteAuth.xml).
+    other: { "msvalidate.01": "9D2FC0608D38902F639EE9628E0C30EF" },
+  },
   category: "real estate",
 };
 
