@@ -33,13 +33,47 @@ export function useUnitsPerPixel(viewBoxWidth: number) {
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
 const SANS = "'Instrument Sans', ui-sans-serif, sans-serif";
 
-function fitLabel(name: string, widthUnits: number, fs: number) {
+/** Abreviaturas legibles para cuando el nombre no cabe en el cuarto. */
+const SHORT: Record<string, string> = {
+  sala: "SALA",
+  comedor: "COMED.",
+  cocina: "COCINA",
+  dormitorio: "DORM.",
+  bano: "BAÑO",
+  estudio: "ESTUD.",
+  terraza: "TERR.",
+  balcon: "BALC.",
+  jardin: "JARD.",
+  patio: "PATIO",
+  piscina: "PISC.",
+  cochera: "COCH.",
+  lavanderia: "LAV.",
+  pasillo: "PAS.",
+  bodega: "BOD.",
+  muelle: "MUEL.",
+};
+
+/**
+ * El nombre si cabe; si no, su primera palabra; si no, una abreviatura conocida
+ * («DORM. 2»); y si nada cabe, ninguno: la lista de espacios debajo lo nombra.
+ */
+function fitLabel(name: string, widthUnits: number, fs: number, type?: string) {
   const charW = fs * 0.64;
   const max = Math.floor(widthUnits / charW);
   if (name.length <= max) return name;
   const first = name.split(" ")[0];
+  const num = name.match(/\s(\d+)$/)?.[1];
+  // La abreviatura del tipo solo si el nombre es el del tipo («Dormitorio 2»), no si es otro («Vestíbulo»).
+  const plain = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(".", "");
+  const base = type && SHORT[type] && plain(first).startsWith(plain(SHORT[type]))
+    ? SHORT[type]
+    : "";
+  const short = base ? `${base}${num ? ` ${num}` : ""}` : "";
+  if (!num && first.length <= max) return first;
+  if (short && short.length <= max) return short;
+  if (base && base.length <= max) return base;
   if (first.length <= max) return first;
-  return max >= 3 ? `${name.slice(0, Math.max(max - 1, 2))}.` : "";
+  return max >= 4 ? `${first.slice(0, max - 1)}.` : "";
 }
 
 export function PlanDefs({ uid, k }: { uid: string; k: number }) {
@@ -305,10 +339,11 @@ function RoomShape({
   const fsName = 10 * k;
   const fsArea = 13 * k;
   const pad = 8 * k;
-  const name = fitLabel(room.name.toUpperCase(), w - pad * 2, fsName);
+  const name = fitLabel(room.name.toUpperCase(), w - pad * 2, fsName, room.type);
   const showArea = h > fsArea + pad * 2 && w > fsArea * 3.4;
   const showName = name && h > fsName + fsArea + pad * 3;
-  const showCount = room.photos.length > 0 && w > 40 * k && h > 40 * k;
+  // El contador de fotos solo en cuartos holgados, para que nunca tape el nombre.
+  const showCount = room.photos.length > 0 && w > 74 * k && h > 64 * k;
   const cy = y + h / 2;
   const dashed = meta.outdoor && !active;
   const labelW =
@@ -465,7 +500,9 @@ export function FloorPlan({
             onSelect={onSelect}
           />
         ))}
-        {selected && <RoomDimensions room={selected} k={k} floor={floor} />}
+        {/* Cotas solo si el plano se ve grande: en un teléfono taparían las medidas de los vecinos
+            (el detalle del espacio ya muestra largo y ancho). */}
+        {selected && UNITS / k >= 30 && <RoomDimensions room={selected} k={k} floor={floor} />}
         <ScaleBar x={0} y={floor.height * UNITS + 64} k={k} metres={scaleMetres} />
         <NorthArrow x={floor.width * UNITS - 12 * k} y={floor.height * UNITS + 82} k={k} />
       </svg>
@@ -689,6 +726,31 @@ export function PlanExplorer({
               label={`Plano de ${context}, ${floor.name}. Toca un espacio para ver sus fotos.`}
             />
           </div>
+        </div>
+        {/* Lista de espacios: más fácil que atinarle a un cuarto pequeño en el teléfono. */}
+        <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar" role="list" aria-label="Espacios">
+          {rooms.map((r) => {
+            const on = r.id === room?.id;
+            const photos = r.photos.length + (r.view?.photo ? 1 : 0);
+            return (
+              <button
+                key={r.id}
+                type="button"
+                role="listitem"
+                aria-current={on ? "true" : undefined}
+                onClick={() => setSelectedId(r.id)}
+                className={cx(
+                  "shrink-0 rounded-ctl px-3 py-2 text-left ring-1 transition",
+                  on ? "bg-negro text-crema-100 ring-negro" : "bg-crema-050 text-negro ring-arena-200 hover:ring-piedra-250",
+                )}
+              >
+                <span className="block whitespace-nowrap text-[14px] font-semibold">{r.name}</span>
+                <span className={cx("block whitespace-nowrap text-[13px] tabular-nums", on ? "text-piedra-300" : "text-grafito-600")}>
+                  {dec(roomArea(r), 1)} m²{photos ? ` · ${photos} foto${photos === 1 ? "" : "s"}` : ""}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <p className="mt-3 flex items-center gap-2 text-[14px] text-grafito-600">
           <span

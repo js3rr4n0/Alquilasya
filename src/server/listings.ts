@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CONDITION_ORDER } from "@/data/conditions";
 import type { Listing, ListingStatus } from "@/data/types";
 import { query } from "@/lib/db";
+import { sendListingFlagged, mailConfigured } from "./mail";
 import { reviewListing } from "./moderation";
 
 /* ——— Validación de lo que llega desde el formulario de publicar ——— */
@@ -174,7 +175,8 @@ export async function getListing(
   admin = false,
 ): Promise<Listing | null> {
   const rows = await query<ListingRow & { user_id: string | null }>(
-    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id
+    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id,
+            (featured_until > now()) IS TRUE AS promoted
        FROM listings WHERE id = $1`,
     [id],
   );
@@ -277,7 +279,10 @@ export async function createListing(input: ListingInput, owner: { id: string; em
        RETURNING id`,
       [id, ...columns, JSON.stringify({ ...data, id }), owner.id, status, reason],
     );
-    if (rows[0]) return { id: rows[0].id, status, reasons: review.reasons };
+    if (rows[0]) {
+      if (!review.ok) await flaggedNotice(owner.email, title, rows[0].id, review.reasons);
+      return { id: rows[0].id, status, reasons: review.reasons };
+    }
   }
   throw new Error("No se pudo generar un identificador para el anuncio.");
 }
@@ -296,7 +301,7 @@ export async function updateListing(
   const { data, columns, review } = await prepare(input);
   const clean = review.ok || Boolean(editor.admin);
   const reason = clean ? null : review.reasons.join(" · ");
-  const rows = await query<{ id: string; status: ListingStatus; review_reason: string | null }>(
+  const rows = await query<{ id: string; status: ListingStatus; review_reason: string | null; owner_email: string | null }>(
     `UPDATE listings SET
         title = $2, type = $3, zone = $4, region = $5, bedrooms = $6, bathrooms = $7, area = $8,
         price_month = $9, deposit = $10, contact_name = $11, contact_whatsapp = $12,
@@ -304,18 +309,26 @@ export async function updateListing(
         data = $18::jsonb,
         status = CASE
                    WHEN status = 'rechazada' THEN 'pendiente'
+                   -- Oculto por reportes: solo el admin lo vuelve a publicar.
+                   WHEN status = 'pendiente' AND review_reason LIKE 'Reportado por %' AND NOT $20 THEN 'pendiente'
                    WHEN status IN ('publicada', 'pendiente') AND $21 THEN 'publicada'
                    WHEN status = 'publicada' THEN 'pendiente'
                    ELSE status END,
         published_at = CASE WHEN status = 'pendiente' AND $21 THEN COALESCE(published_at, now()) ELSE published_at END,
-        review_reason = CASE WHEN status = 'rechazada' THEN review_reason ELSE $22 END,
+        review_reason = CASE
+                          WHEN status = 'rechazada' THEN review_reason
+                          WHEN review_reason LIKE 'Reportado por %' AND NOT $20 THEN review_reason
+                          ELSE $22 END,
         edited_at = now(), updated_at = now()
       WHERE id = $1 AND (user_id = $19 OR $20)
-      RETURNING id, status, review_reason`,
+      RETURNING id, status, review_reason, (SELECT email FROM users WHERE id = listings.user_id) AS owner_email`,
     // El admin puede corregir cualquier anuncio; el dueño sigue siendo el mismo.
     [id, ...columns, JSON.stringify({ ...data, id }), editor.id, Boolean(editor.admin), clean, reason],
   );
   const row = rows[0];
+  if (row && !clean && row.status === "pendiente" && row.owner_email) {
+    await flaggedNotice(row.owner_email, data.title, row.id, review.reasons);
+  }
   return row ? { id: row.id, status: row.status, reasons: clean ? [] : review.reasons } : null;
 }
 
@@ -338,6 +351,12 @@ export async function getListingForEdit(id: string, userId: string, admin = fals
     listing: { ...row.data, id, status: row.status },
     contact: { name: row.contact_name, whatsapp: row.contact_whatsapp, email: row.contact_email ?? "" },
   };
+}
+
+/** Correo al dueño con lo que el filtro marcó. Si el correo falla, el anuncio igual queda guardado. */
+async function flaggedNotice(to: string, title: string, id: string, reasons: string[]) {
+  if (!mailConfigured()) return;
+  await sendListingFlagged(to, title, id, reasons).catch((error) => console.error("aviso de filtro", error));
 }
 
 /** Error que se puede mostrar tal cual a quien envía el formulario. */
@@ -414,7 +433,8 @@ export async function adminOverview() {
         (SELECT count(*)::int FROM messages) AS messages,
         (SELECT count(*)::int FROM messages WHERE created_at > now() - interval '7 days') AS messages_week,
         (SELECT count(*)::int FROM waitlist) AS waitlist,
-        (SELECT count(*)::int FROM waitlist WHERE tipo_usuario = 'propietario') AS waitlist_owners`,
+        (SELECT count(*)::int FROM waitlist WHERE tipo_usuario = 'propietario') AS waitlist_owners,
+        (SELECT count(DISTINCT listing_id)::int FROM reports WHERE status = 'abierto') AS reports_open`,
     ),
   ]);
   return { listings, users, waitlist, totals: totals[0] };

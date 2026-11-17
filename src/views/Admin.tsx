@@ -6,6 +6,7 @@ import { Link } from "../lib/router";
 import { useStore } from "../lib/store";
 import { AdminAnalytics } from "./AdminAnalytics";
 import { AdminPayments } from "./AdminPayments";
+import { AdminReports } from "./AdminReports";
 import { NotFound } from "./NotFound";
 
 type Status = "pendiente" | "publicada" | "rechazada" | "pausada";
@@ -50,7 +51,7 @@ type Overview = {
   totals: Record<string, number>;
   services: { correo: boolean; fotos: boolean };
 };
-type Tab = "resumen" | "visitas" | "pagos" | "anuncios" | "usuarios" | "espera";
+type Tab = "resumen" | "visitas" | "pagos" | "reportes" | "anuncios" | "usuarios" | "espera";
 
 const TONE = { pendiente: "aviso", publicada: "exito", rechazada: "error", pausada: "neutral" } as const;
 const when = (iso: string) =>
@@ -118,6 +119,7 @@ export function Admin() {
           { value: "resumen", label: "Resumen" },
           { value: "visitas", label: "Visitas" },
           { value: "pagos", label: "Pagos" },
+          { value: "reportes", label: `Reportes${t.reports_open ? ` (${t.reports_open})` : ""}` },
           { value: "anuncios", label: `Anuncios${pending.length ? ` (${pending.length})` : ""}` },
           { value: "usuarios", label: "Usuarios" },
           { value: "espera", label: `Lista de espera (${data.waitlist.length})` },
@@ -131,6 +133,7 @@ export function Admin() {
 
       {tab === "visitas" && <AdminAnalytics />}
       {tab === "pagos" && <AdminPayments />}
+      {tab === "reportes" && <AdminReports onChange={load} />}
 
       {tab === "resumen" && (
         <>

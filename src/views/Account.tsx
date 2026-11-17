@@ -1,12 +1,12 @@
 "use client";
 
 import { ArrowRight, Plus } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, ButtonLink, Container } from "../components/ui";
+import { Badge, Button, ButtonLink, Container, Switch } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { PLANS, usd, type PlanId } from "../lib/plans";
-import { Link, useNavigate } from "../lib/router";
+import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useStore, type Account as User } from "../lib/store";
 
 type Status = "pendiente" | "publicada" | "rechazada" | "pausada";
@@ -42,9 +42,12 @@ const STATUS: Record<Status, { label: string; tone: "aviso" | "exito" | "error" 
 export function Account() {
   const { user, authLoaded, setUser, logout } = useStore();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const justPaid = params.get("pago") === "ok";
   const [listings, setListings] = useState<ListingRow[] | null>(null);
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [notices, setNotices] = useState(true);
   const [busy, setBusy] = useState(false);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [featuring, setFeaturing] = useState<string | null>(null);
@@ -58,6 +61,7 @@ export function Account() {
     if (user) {
       setName(user.name);
       setWhatsapp(user.whatsapp ?? "");
+      setNotices(user.notices !== false);
     }
   }, [user]);
 
@@ -86,15 +90,34 @@ export function Account() {
     setBusy(false);
   }
 
+  // Wompi tarda varios segundos en crear un enlace de pago: se piden en cuanto se
+  // abre «Destacar», así al elegir un plan la página de pago abre al instante.
+  const links = useRef(new Map<string, Promise<{ ok: boolean; url?: string; error?: string }>>());
+  const requestLink = useCallback((listingId: string, plan: PlanId) => {
+    const key = `${listingId}:${plan}`;
+    let p = links.current.get(key);
+    if (!p) {
+      p = fetch("/api/pagos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId, plan }),
+      })
+        .then(async (res) => ({ ok: res.ok, ...((await res.json().catch(() => ({}))) as { url?: string; error?: string }) }))
+        .catch(() => ({ ok: false }));
+      links.current.set(key, p);
+      // Si falló, se puede volver a intentar.
+      p.then((r) => !r.ok && links.current.delete(key));
+    }
+    return p;
+  }, []);
+  useEffect(() => {
+    if (featuring) PLANS.forEach((p) => requestLink(featuring, p.id));
+  }, [featuring, requestLink]);
+
   async function pay(listingId: string, plan: PlanId) {
     setPaying(plan);
-    const res = await fetch("/api/pagos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, plan }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-    if (res.ok && data.url) {
+    const data = await requestLink(listingId, plan);
+    if (data.ok && data.url) {
       window.location.assign(data.url);
       return;
     }
@@ -108,7 +131,7 @@ export function Account() {
     const res = await fetch("/api/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), whatsapp: whatsapp.trim() }),
+      body: JSON.stringify({ name: name.trim(), whatsapp: whatsapp.trim(), notices }),
     });
     const data = (await res.json().catch(() => ({}))) as { user?: User; error?: string };
     if (res.ok && data.user) {
@@ -153,6 +176,13 @@ export function Account() {
           </Button>
         </div>
       </div>
+
+      {justPaid && (
+        <div role="status" className="mt-8 rounded-card bg-exito-bg px-5 py-4 text-[15px] text-exito">
+          <strong className="font-semibold">Pago recibido.</strong> Tu anuncio ya está destacado y aparece primero
+          en las búsquedas. Wompi te envió el comprobante por correo.
+        </div>
+      )}
 
       {!user.verified && (
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-card bg-aviso-bg px-5 py-4 text-aviso">
@@ -336,6 +366,12 @@ export function Account() {
               className={fieldClass}
             />
           </label>
+          <Switch
+            checked={notices}
+            onChange={setNotices}
+            label="Avisos por correo"
+            description="Cuando te escriben por el chat o tu destacado está por vencer. Los avisos sobre tu anuncio en revisión llegan siempre."
+          />
           <Button type="submit" variant="ink" className="w-full" disabled={busy}>
             Guardar
           </Button>

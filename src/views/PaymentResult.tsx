@@ -58,6 +58,14 @@ export function PaymentResult() {
     return () => window.clearTimeout(t);
   }, [user, id, order, tries]);
 
+  // Pago confirmado: a los pocos segundos se lleva a la persona a su cuenta.
+  const paid = order?.status === "pagada";
+  useEffect(() => {
+    if (!paid) return;
+    const t = window.setTimeout(() => navigate("/cuenta?pago=ok", { replace: true }), 5000);
+    return () => window.clearTimeout(t);
+  }, [paid, navigate]);
+
   const plan = order ? planById(order.plan) : null;
   const until = order?.featuredUntil
     ? new Intl.DateTimeFormat("es", { day: "numeric", month: "long", year: "numeric", timeZone: "America/El_Salvador" }).format(
@@ -88,6 +96,7 @@ export function PaymentResult() {
         <p className="label text-terracota-700">Pago</p>
         <h1 className="head mt-3 text-[32px] leading-tight">{heading}</h1>
         <p className="mt-4 text-[17px] leading-relaxed text-grafito-700">{body}</p>
+        {paid && <p className="mt-3 text-[14px] text-grafito-600">Te llevamos a tu cuenta en unos segundos…</p>}
         <div className="mt-7 flex flex-wrap gap-3">
           {order?.status === "pagada" && order.listingId && (
             <ButtonLink to={`/casa/${order.listingId}`} variant="ink">

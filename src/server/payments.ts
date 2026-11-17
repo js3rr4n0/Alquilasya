@@ -86,10 +86,10 @@ export async function startPayment(user: { id: string; email: string }, listingI
     await query("UPDATE payments SET wompi_link_id = $2, wompi_url = $3, live = $4 WHERE id = $1", [
       id,
       link.idEnlace,
-      link.urlEnlace,
+      link.urlEnlaceLargo || link.urlEnlace,
       link.estaProductivo,
     ]);
-    return { id, url: link.urlEnlace };
+    return { id, url: link.urlEnlaceLargo || link.urlEnlace };
   } catch (error) {
     await query("UPDATE payments SET status = 'fallida' WHERE id = $1", [id]).catch(() => {});
     console.error("Wompi crear enlace", error);

@@ -6,6 +6,7 @@ import { Link, useParams } from "@/lib/router";
 import { Calendar, overlapsBooked } from "../components/Calendar";
 import { ConditionsLegend, ConditionsSheet } from "../components/ConditionsSheet";
 import { ContactDialog } from "../components/ContactDialog";
+import { ReportButton } from "../components/ReportDialog";
 import { DurationPicker } from "../components/DurationPicker";
 import { PlanExplorer } from "../components/FloorPlan";
 import { ListingCard, roomsLabel, SaveButton, spaceCount } from "../components/ListingCard";
@@ -226,7 +227,14 @@ export function ListingPage({ initial }: { initial?: Listing }) {
         <div className="border-b border-piedra-250/80 pb-8">
           <div className="flex flex-wrap items-center gap-2">
             {pending && <Badge tone="aviso">En revisión</Badge>}
-            {listing.promoted && <Badge tone="outline">Anuncio</Badge>}
+            {listing.promoted && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-terracota-600 px-2.5 py-1 text-[13px] font-semibold text-crema-100"
+                title="Anuncio pagado por el propietario para aparecer primero. No cambia el precio ni las condiciones."
+              >
+                <span aria-hidden>★</span> Destacado · Anuncio
+              </span>
+            )}
             {listing.isNew && <Badge tone="ink">Tu anuncio</Badge>}
           </div>
 
@@ -568,6 +576,9 @@ export function ListingPage({ initial }: { initial?: Listing }) {
                   El pago y el contrato se acuerdan directamente con el propietario. AlquilasYa no
                   recibe ni guarda dinero.
                 </p>
+                {!listing.isNew && listing.status === "publicada" && (
+                  <ReportButton listingId={listing.id} className="mt-3" />
+                )}
               </div>
             </div>
           </aside>

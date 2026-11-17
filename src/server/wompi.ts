@@ -49,7 +49,14 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
   return (await res.json()) as T;
 }
 
-export type WompiLink = { idEnlace: number; urlEnlace: string; urlQrCodeEnlace: string; estaProductivo: boolean };
+export type WompiLink = {
+  idEnlace: number;
+  urlEnlace: string;
+  /** Dirección directa, sin el salto del enlace corto. */
+  urlEnlaceLargo?: string;
+  urlQrCodeEnlace: string;
+  estaProductivo: boolean;
+};
 
 export function createPaymentLink(input: {
   reference: string;
@@ -86,7 +93,8 @@ export function createPaymentLink(input: {
         cantidadPorDefecto: 1,
         notificarTransaccionCliente: true,
       },
-      vigencia: { fechaInicio: new Date().toISOString(), fechaFin: input.expiresAt.toISOString() },
+      // Sin fecha de inicio: vale desde ya y no depende de que los relojes coincidan.
+      vigencia: { fechaFin: input.expiresAt.toISOString() },
       limitesDeUso: { cantidadMaximaPagosExitosos: 1 },
     },
   });

@@ -45,6 +45,19 @@ const LocationPicker = dynamic(() => import("../components/LocationPicker"), {
   loading: () => <div className="h-[320px] animate-pulse rounded-card bg-arena-200 sm:h-[380px]" />,
 });
 
+/** Temas que distinguen un anuncio de AlquilasYa: lo que normalmente se descubre en la visita. */
+const DESCRIPTION_TOPICS: [string, string][] = [
+  ["Qué incluye el precio", "Incluye: "],
+  ["Qué no incluye y cuánto cuesta", "No incluye: "],
+  ["Agua", "Agua: "],
+  ["Luz e internet", "Luz e internet: "],
+  ["Seguridad", "Seguridad: "],
+  ["Ruido y vecinos", "Ruido y vecinos: "],
+  ["Qué hay cerca", "Cerca: "],
+  ["Estado del inmueble", "Estado: "],
+  ["Contrato y requisitos", "Contrato y requisitos: "],
+];
+
 function starterFloors(): Floor[] {
   return [
     {
@@ -630,18 +643,51 @@ export function Publish() {
                   />
                 </label>
 
-                <label className="block sm:col-span-2">
-                  <span className="text-[14px] font-medium text-grafito-700">
-                    Descripción honesta (incluye lo que un inquilino agradecería saber antes)
-                  </span>
+                <div className="sm:col-span-2">
+                  <label htmlFor="descripcion" className="text-[14px] font-medium text-grafito-700">
+                    Descripción honesta
+                  </label>
+                  <p className="mt-1 text-[14px] leading-snug text-grafito-600">
+                    En AlquilasYa se dice todo antes de la visita: lo bueno y lo que un inquilino agradecería saber.
+                    Toca un tema para agregarlo y complétalo con tus palabras.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {DESCRIPTION_TOPICS.map(([label, line]) => {
+                      const used = description.split("\n").some((l) => l.startsWith(line.trim()));
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          disabled={used}
+                          onClick={() =>
+                            setDescription((d) => `${d.trimEnd()}${d.trim() ? "\n" : ""}${line}`.slice(0, 3000))
+                          }
+                          className={cx(
+                            "rounded-full px-3 py-1.5 text-[14px] ring-1 transition",
+                            used
+                              ? "bg-arena-200 text-grafito-600 ring-transparent"
+                              : "bg-crema-050 text-negro ring-piedra-250 hover:ring-negro",
+                          )}
+                        >
+                          {used ? "✓ " : "+ "}
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <textarea
-                    rows={4}
+                    id="descripcion"
+                    rows={7}
                     value={description}
                     maxLength={3000}
+                    placeholder={
+                      "Ejemplo:\nAgua: llega todo el día, hay cisterna de 1,000 litros.\nIncluye: cuota de mantenimiento e internet de 100 Mbps. No incluye: luz (unos $35 al mes).\nSeguridad: colonia con portón y vigilante 24 horas.\nRuido: calle tranquila; los sábados hay música en la casa de enfrente.\nA pie: supermercado a 5 minutos y parada de bus a 2 cuadras."
+                    }
                     onChange={(e) => setDescription(e.target.value)}
-                    className={`${fieldClass} h-auto py-3 leading-relaxed`}
+                    className={`${fieldClass} mt-3 h-auto py-3 leading-relaxed`}
                   />
-                </label>
+                  <p className="mt-1.5 text-right text-[13px] text-grafito-600 tabular-nums">{description.length} / 3000</p>
+                </div>
               </div>
 
               <div className="border-t border-arena-200 pt-6">
