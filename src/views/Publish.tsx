@@ -1,26 +1,29 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useNavigate, useSearchParams } from "@/lib/router";
+import { Link, useNavigate, useSearchParams } from "@/lib/router";
 import { ConditionsSheet } from "../components/ConditionsSheet";
 import { PlanExplorer } from "../components/FloorPlan";
 import { PlanEditor } from "../components/PlanEditor";
-import { Button, Container, Eyebrow, Folio, Segmented } from "../components/ui";
+import { Button, buttonClass, Container, Eyebrow, Folio, Segmented } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { CONDITION_ORDER, CONDITIONS } from "../data/conditions";
-import { ZONES } from "../data/listings";
 import { area as roomArea, ROOM_TYPES } from "../data/rooms";
 import type {
   Condition,
   ConditionStatus,
   Floor,
   Included,
+  Listing,
   PropertyType,
 } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, isoDay, m2, money } from "../lib/format";
+import { departments, districtsOf, getDistrict, getMunicipality } from "../lib/geo";
+import { track } from "../lib/track";
 import { uploadPhoto } from "../lib/upload";
 import { photoUrl } from "../lib/photos";
 import { useStore } from "../lib/store";
@@ -36,47 +39,11 @@ const STEPS: { key: StepKey; n: string; label: string }[] = [
 ];
 
 const TYPES: PropertyType[] = ["Casa", "Apartamento", "Loft", "Cabaña", "Penthouse", "Estudio"];
-const COVERS = [
-  "laderaAgave",
-  "casaPiscinaPatio",
-  "patioVoladizo",
-  "entradaPiedra",
-  "edificioBalcones",
-  "fachadaColonial",
-];
 
-/** Centro aproximado de cada departamento, para ubicar el anuncio en el mapa. */
-const DEPARTMENTS: Record<string, [number, number]> = {
-  Ahuachapán: [13.921, -89.845],
-  Cabañas: [13.864, -88.749],
-  Chalatenango: [14.04, -88.938],
-  Cuscatlán: [13.718, -88.933],
-  "La Libertad": [13.677, -89.29],
-  "La Paz": [13.509, -88.868],
-  "La Unión": [13.337, -87.844],
-  Morazán: [13.697, -88.105],
-  "San Miguel": [13.481, -88.178],
-  "San Salvador": [13.699, -89.191],
-  "San Vicente": [13.641, -88.785],
-  "Santa Ana": [13.994, -89.557],
-  Sonsonate: [13.719, -89.724],
-  Usulután: [13.346, -88.44],
-};
-
-/** Zonas conocidas: su departamento y su punto en el mapa. */
-const ZONE_INFO: Record<string, { region: string; at: [number, number] }> = {
-  "Santa Tecla": { region: "La Libertad", at: [13.674, -89.29] },
-  "San Salvador": { region: "San Salvador", at: [13.699, -89.191] },
-  "San Benito": { region: "San Salvador", at: [13.692, -89.238] },
-  "Antiguo Cuscatlán": { region: "La Libertad", at: [13.673, -89.24] },
-  "Centro Histórico": { region: "San Salvador", at: [13.698, -89.191] },
-  "El Tunco": { region: "La Libertad", at: [13.493, -89.382] },
-  "Lago de Coatepeque": { region: "Santa Ana", at: [13.866, -89.553] },
-  Suchitoto: { region: "Cuscatlán", at: [13.938, -89.028] },
-  "Concepción de Ataco": { region: "Ahuachapán", at: [13.87, -89.848] },
-};
-
-const OTHER = "__otra__";
+const LocationPicker = dynamic(() => import("../components/LocationPicker"), {
+  ssr: false,
+  loading: () => <div className="h-[320px] animate-pulse rounded-card bg-arena-200 sm:h-[380px]" />,
+});
 
 function starterFloors(): Floor[] {
   return [
@@ -206,19 +173,25 @@ function starterConditions(): Condition[] {
 }
 
 export function Publish() {
-  const { rememberMine } = useStore();
+  const { user, authLoaded } = useStore();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const stepParam = params.get("paso") as StepKey | null;
+  /** Id del anuncio que se está editando, si se llegó con `?editar=`. */
+  const editing = params.get("editar");
+  const [editState, setEditState] = useState<"none" | "loading" | "ready" | "missing">(
+    editing ? "loading" : "none",
+  );
   const step: StepKey = STEPS.some((s) => s.key === stepParam) ? stepParam! : "datos";
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
   const [title, setTitle] = useState("");
   const [type, setType] = useState<PropertyType>("Casa");
-  const [zone, setZone] = useState("Santa Tecla");
-  const [otherZone, setOtherZone] = useState("");
-  const [department, setDepartment] = useState("San Salvador");
-  const [cover, setCover] = useState("laderaAgave");
+  const [department, setDepartment] = useState("10");
+  const [districtId, setDistrictId] = useState(0);
+  const [colonia, setColonia] = useState("");
+  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [cover, setCover] = useState("");
   const [coverBusy, setCoverBusy] = useState(false);
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
@@ -227,6 +200,14 @@ export function Publish() {
   const [contactEmail, setContactEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
+
+  // Los datos de contacto parten de la cuenta; se pueden cambiar para este anuncio.
+  useEffect(() => {
+    if (!user) return;
+    setContactName((v) => v || user.name);
+    setContactWhatsapp((v) => v || (user.whatsapp ?? ""));
+    setContactEmail((v) => v || user.email);
+  }, [user]);
   const [floors, setFloors] = useState<Floor[]>(starterFloors);
   const [conditions, setConditions] = useState<Condition[]>(starterConditions);
   const [rules, setRules] = useState<string[]>([]);
@@ -242,8 +223,52 @@ export function Publish() {
     { label: "Parqueo", included: false },
   ]);
 
+  // Modo edición: se cargan la ficha y el contacto del anuncio propio.
+  useEffect(() => {
+    if (!editing || !user?.verified) return;
+    let alive = true;
+    fetch(`/api/listings/${encodeURIComponent(editing)}?editar=1`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (d: {
+          listing: Listing;
+          contact: { name: string; whatsapp: string; email: string };
+        } | null) => {
+          if (!alive) return;
+          if (!d) return setEditState("missing");
+          const l = d.listing;
+          const district = l.districtId ? getDistrict(l.districtId) : undefined;
+          setTitle(l.title);
+          setType(l.type);
+          if (district) {
+            setDepartment(district.departmentId);
+            setDistrictId(district.id);
+          }
+          setColonia(l.colonia ?? "");
+          setPoint({ lat: l.lat, lng: l.lng });
+          setCover(l.cover);
+          setSummary(l.summary);
+          setDescription(l.description);
+          setFloors(l.floors);
+          setConditions(l.conditions);
+          setRules(l.rules);
+          setPrices(l.prices);
+          setDeposit(l.deposit);
+          setIncludes(l.includes);
+          setContactName(d.contact.name);
+          setContactWhatsapp(d.contact.whatsapp);
+          setContactEmail(d.contact.email);
+          setEditState("ready");
+        },
+      )
+      .catch(() => alive && setEditState("missing"));
+    return () => {
+      alive = false;
+    };
+  }, [editing, user?.verified]);
+
   function go(next: StepKey) {
-    setParams({ paso: next });
+    setParams(editing ? { paso: next, editar: editing } : { paso: next });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -286,16 +311,15 @@ export function Publish() {
     }
   }
 
-  const zoneName = zone === OTHER ? otherZone.trim() : zone;
-  const known = ZONE_INFO[zone];
-  const region = known?.region ?? department;
+  const district = getDistrict(districtId);
+  const zoneName = district?.name ?? "";
 
   /** Lo que falta para poder enviar, en palabras de quien publica. */
   function missing() {
     const list: string[] = [];
     const offered = Object.values(prices);
     if (title.trim().length < 3) list.push("Ponle un nombre a la propiedad (paso 1).");
-    if (zoneName.length < 2) list.push("Escribe la zona o el municipio (paso 1).");
+    if (!district) list.push("Elige el distrito donde está la propiedad (paso 1).");
     if (summary.trim().length < 10) list.push("Describe la propiedad en una frase (paso 1).");
     if (contactName.trim().length < 2) list.push("Escribe tu nombre de contacto (paso 1).");
     if (!/^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()))
@@ -317,16 +341,17 @@ export function Publish() {
       go("revisar");
       return;
     }
-    const [lat, lng] = known?.at ?? DEPARTMENTS[department] ?? DEPARTMENTS["San Salvador"];
+    if (!district) return;
+    const at = point ?? { lat: district.lat, lng: district.lng };
     const clean = (src: string) => !/^(blob:|data:)/.test(src);
     const payload = {
       title: title.trim(),
       type,
-      zone: zoneName,
-      region,
-      lat: lat + (Math.random() - 0.5) * 0.012,
-      lng: lng + (Math.random() - 0.5) * 0.012,
-      cover: clean(cover) ? cover : "entradaPiedra",
+      districtId: district.id,
+      colonia: colonia.trim() || undefined,
+      lat: at.lat,
+      lng: at.lng,
+      cover: clean(cover) ? cover : "",
       summary: summary.trim(),
       description: description.trim(),
       prices,
@@ -355,27 +380,57 @@ export function Publish() {
 
     setSending(true);
     try {
-      const res = await fetch("/api/listings", {
-        method: "POST",
+      const res = await fetch(
+        editing ? `/api/listings/${encodeURIComponent(editing)}` : "/api/listings",
+        {
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        id?: string;
-        ownerToken?: string;
-        error?: string;
-      };
-      if (!res.ok || !data.id || !data.ownerToken) {
+      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
         throw new Error(data.error ?? "No pudimos guardar tu anuncio. Intenta de nuevo.");
       }
-      rememberMine({ id: data.id, token: data.ownerToken });
-      toast.success("Anuncio enviado. Lo revisamos antes de publicarlo.");
+      track(editing ? "anuncio_editado" : "anuncio_enviado", { tipo: type, zona: zoneName });
+      toast.success(
+        editing ? "Cambios guardados." : "Anuncio enviado. Lo revisamos antes de publicarlo.",
+      );
       navigate(`/casa/${data.id}`);
     } catch (error) {
       setProblems([error instanceof Error ? error.message : "No pudimos guardar tu anuncio."]);
     } finally {
       setSending(false);
     }
+  }
+
+  useEffect(() => {
+    if (user && !user.verified) navigate("/verificar?next=/publicar", { replace: true });
+  }, [user, navigate]);
+
+  // Sin sesión no hay formulario: se va a iniciar sesión y se vuelve aquí después.
+  useEffect(() => {
+    if (!authLoaded || user) return;
+    const back = `/publicar${editing ? `?editar=${encodeURIComponent(editing)}` : ""}`;
+    navigate(`/entrar?next=${encodeURIComponent(back)}`, { replace: true });
+  }, [authLoaded, user, editing, navigate]);
+
+  if (!authLoaded || !user || !user.verified) {
+    return <div className="min-h-[60vh]" aria-busy="true" />;
+  }
+
+  if (editState === "loading") return <div className="min-h-[60vh]" aria-busy="true" />;
+  if (editState === "missing") {
+    return (
+      <Container className="py-24 text-center">
+        <h1 className="serif text-[40px] leading-none">No encontramos ese anuncio.</h1>
+        <p className="mt-4 text-[16px] text-grafito-700">
+          Solo puedes editar los anuncios de tu cuenta.
+        </p>
+        <Link to="/cuenta" className={buttonClass("ink", "md", "mt-8")}>
+          Ir a mis anuncios
+        </Link>
+      </Container>
+    );
   }
 
   return (
@@ -391,7 +446,16 @@ export function Publish() {
           <div className="mt-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <h1 className="serif text-[42px] leading-[0.98] sm:text-[54px]">
-                Arma el plano, responde las condiciones y <em className="text-terracota-300">listo.</em>
+                {editing ? (
+                  <>
+                    Edita tu <em className="text-terracota-300">anuncio.</em>
+                  </>
+                ) : (
+                  <>
+                    Arma el plano, responde las condiciones y{" "}
+                    <em className="text-terracota-300">listo.</em>
+                  </>
+                )}
               </h1>
             </div>
             <p className="shrink-0 text-[14px] tabular-nums text-piedra-300">
@@ -477,47 +541,80 @@ export function Publish() {
                 </label>
 
                 <label className="block">
-                  <span className="text-[14px] font-medium text-grafito-700">Zona</span>
-                  <select value={zone} onChange={(e) => setZone(e.target.value)} className={fieldClass}>
-                    {ZONES.map((z) => (
-                      <option key={z} value={z}>
-                        {z}
+                  <span className="text-[14px] font-medium text-grafito-700">Departamento</span>
+                  <select
+                    value={department}
+                    onChange={(e) => {
+                      setDepartment(e.target.value);
+                      setDistrictId(0);
+                      setPoint(null);
+                    }}
+                    className={fieldClass}
+                  >
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
                       </option>
                     ))}
-                    <option value={OTHER}>Otra zona o municipio…</option>
                   </select>
                 </label>
 
-                {zone === OTHER && (
-                  <>
-                    <label className="block">
-                      <span className="text-[14px] font-medium text-grafito-700">
-                        Zona, colonia o municipio
-                      </span>
-                      <input
-                        type="text"
-                        value={otherZone}
-                        maxLength={60}
-                        placeholder="Ej.: Colonia Escalón"
-                        onChange={(e) => setOtherZone(e.target.value)}
-                        className={fieldClass}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-[14px] font-medium text-grafito-700">Departamento</span>
-                      <select
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className={fieldClass}
-                      >
-                        {Object.keys(DEPARTMENTS).map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
+                <label className="block">
+                  <span className="text-[14px] font-medium text-grafito-700">Distrito</span>
+                  <select
+                    value={districtId}
+                    onChange={(e) => {
+                      setDistrictId(Number(e.target.value));
+                      setPoint(null);
+                    }}
+                    className={fieldClass}
+                  >
+                    <option value={0} disabled>
+                      Elige un distrito
+                    </option>
+                    {districtsOf(department).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                  {district && (
+                    <span className="mt-1 block text-[14px] text-grafito-600">
+                      Municipio de {getMunicipality(district.municipalityId)?.name}
+                    </span>
+                  )}
+                </label>
+
+                <label className="block">
+                  <span className="text-[14px] font-medium text-grafito-700">
+                    Colonia o residencial (opcional)
+                  </span>
+                  <input
+                    type="text"
+                    value={colonia}
+                    maxLength={80}
+                    placeholder="Ej.: Colonia Escalón"
+                    onChange={(e) => setColonia(e.target.value)}
+                    className={fieldClass}
+                  />
+                </label>
+
+                {district && (
+                  <div className="sm:col-span-2">
+                    <span className="text-[14px] font-medium text-grafito-700">
+                      Marca en el mapa dónde está
+                    </span>
+                    <p className="mb-2 mt-0.5 text-[14px] leading-snug text-grafito-600">
+                      Toca el mapa o arrastra el pin. Así aparece tu anuncio en el mapa de
+                      resultados; puedes dejarlo en una esquina cercana si no quieres mostrar el
+                      punto exacto.
+                    </p>
+                    <LocationPicker
+                      center={{ lat: district.lat, lng: district.lng }}
+                      value={point}
+                      onChange={setPoint}
+                    />
+                  </div>
                 )}
 
                 <label className="block sm:col-span-2">
@@ -614,27 +711,20 @@ export function Publish() {
                 </label>
               </div>
               <p className="mt-1 text-[14px] text-grafito-600">
-                Sin texto ni filtros encima: la foto va limpia.
+                Una foto real de tu propiedad, sin texto ni filtros encima.
               </p>
               <div className="mt-4 aspect-[4/3] overflow-hidden rounded-card bg-arena-200">
                 <img src={photoUrl(cover, 900, 675)} alt="" className="size-full object-cover" />
               </div>
-              <p className="mt-4 text-[14px] text-grafito-600">O usa una foto de muestra mientras tanto</p>
-              <div className="mt-2 grid grid-cols-6 gap-2">
-                {COVERS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setCover(c)}
-                    className={cx(
-                      "aspect-[4/3] overflow-hidden rounded-[3px] ring-offset-2 ring-offset-crema-050",
-                      cover === c ? "ring-2 ring-negro" : "opacity-70 hover:opacity-100",
-                    )}
-                  >
-                    <img src={photoUrl(c, 180, 135)} alt="" className="size-full object-cover" />
-                  </button>
-                ))}
-              </div>
+              {cover && (
+                <button
+                  type="button"
+                  onClick={() => setCover("")}
+                  className="mt-3 text-[14px] font-medium text-grafito-600 underline underline-offset-4"
+                >
+                  Quitar foto
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -890,9 +980,13 @@ export function Publish() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <Eyebrow index="05">Revisión final</Eyebrow>
-                <h2 className="head mt-2 text-[34px]">Así se verá tu anuncio.</h2>
+                <h2 className="head mt-2 text-[34px]">
+                  {editing ? "Revisa los cambios." : "Así se verá tu anuncio."}
+                </h2>
                 <p className="mt-2 max-w-[56ch] text-[16px] leading-relaxed text-grafito-700">
-                  Al enviarlo lo revisamos antes de mostrarlo al público. Te avisamos por WhatsApp.
+                  {editing
+                    ? "Al guardar, tu anuncio se actualiza con estos datos y conserva su estado."
+                    : "Al enviarlo lo revisamos antes de mostrarlo al público. Te avisamos por WhatsApp."}
                 </p>
               </div>
             </div>
@@ -970,7 +1064,8 @@ export function Publish() {
                 </>
               ) : (
                 <>
-                  Enviar a revisión <ArrowRight className="size-4" />
+                  {editing ? "Guardar cambios" : "Enviar a revisión"}{" "}
+                  <ArrowRight className="size-4" />
                 </>
               )}
             </Button>

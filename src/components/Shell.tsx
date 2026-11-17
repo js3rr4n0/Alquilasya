@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { StoreProvider } from "@/lib/store";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
@@ -16,7 +16,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="flex min-h-dvh flex-col">
         <Header />
         <main id="contenido" className="flex-1">
-          <Suspense fallback={<div className="min-h-[60vh]" />}>{children}</Suspense>
+          {children}
         </main>
         {!hideFooter && <Footer />}
       </div>

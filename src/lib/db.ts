@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { SCHEMA } from "../../db/schema.mjs";
+import { SCHEMA, SCHEMA_VERSION } from "../../db/schema.mjs";
 
 /**
  * Acceso a Postgres. En producción usa el driver HTTP de Neon (la base que
@@ -46,6 +46,13 @@ function getRunner() {
 function ensureSchema() {
   ready ??= (async () => {
     const run = await getRunner();
+    // Una sola consulta en el caso normal: el esquema ya está en esta versión.
+    try {
+      const meta = await run("SELECT version FROM schema_meta");
+      if (Number(meta[0]?.version) === SCHEMA_VERSION) return;
+    } catch {
+      /* la tabla aún no existe: se crea todo abajo */
+    }
     for (const statement of SCHEMA) await run(statement);
   })().catch((error) => {
     ready = null;

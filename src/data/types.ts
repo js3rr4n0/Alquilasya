@@ -110,10 +110,12 @@ export type Listing = {
   booked?: [string, string][];
   /** Published from this browser (kept so the owner can find it again). */
   isNew?: boolean;
-  /** Illustrative listing shipped with the site, not a real property. */
-  example?: boolean;
   /** Moderation state for listings stored in the database. */
   status?: ListingStatus;
+  /** Territorial division for real listings (zone = district, region = department). */
+  districtId?: number;
+  municipality?: string;
+  colonia?: string;
   /** Public name of whoever published a real listing. */
   contactName?: string;
 };
@@ -133,28 +135,4 @@ export type Person = {
   verified: string[];
   languages: string[];
   bio: string;
-};
-
-export type MessageKind = "text" | "expediente" | "system";
-
-export type Message = {
-  id: string;
-  from: "me" | "them" | "system";
-  kind: MessageKind;
-  text: string;
-  at: string;
-  /** Whether the sender was in reserved mode when it was sent. */
-  reserved?: boolean;
-};
-
-export type Conversation = {
-  id: string;
-  listingId: string;
-  ownerId: string;
-  reserved: boolean;
-  keyVerified: boolean;
-  disappearing: "Nunca" | "30 días" | "7 días" | "24 horas";
-  unread: number;
-  expedienteShared: boolean;
-  messages: Message[];
 };

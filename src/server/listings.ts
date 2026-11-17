@@ -8,11 +8,14 @@ import { query } from "@/lib/db";
 
 const text = (max: number) => z.string().trim().max(max);
 
-/** Clave de foto de muestra, id de Unsplash o URL https (subida a Blob). */
+/** Solo fotos subidas por quien publica (Vercel Blob). No se aceptan fotos de muestra. */
 const photo = z
   .string()
   .max(600)
-  .refine((v) => /^[A-Za-z0-9_-]{1,80}$/.test(v) || /^https:\/\/[^\s]+$/.test(v), "Foto inválida");
+  .refine(
+    (v) => /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s]+$/i.test(v),
+    "Usa fotos subidas desde tu dispositivo",
+  );
 
 const ROOM_TYPES = [
   "sala",
@@ -60,11 +63,11 @@ const price = z.number().min(1).max(100000);
 export const listingInput = z.object({
   title: text(80).min(3, "Ponle un nombre a la propiedad"),
   type: z.enum(["Casa", "Apartamento", "Loft", "Cabaña", "Estudio", "Penthouse"]),
-  zone: text(60).min(2),
-  region: text(60).min(2),
+  districtId: z.number().int().positive(),
+  colonia: text(80).optional(),
   lat: z.number().min(12.9).max(14.6),
   lng: z.number().min(-90.3).max(-87.5),
-  cover: photo,
+  cover: z.union([photo, z.literal("")]),
   summary: text(200).min(10, "Describe la propiedad en una frase"),
   description: text(3000),
   prices: z
@@ -149,22 +152,64 @@ export async function listPublished(): Promise<Listing[]> {
   return rows.map(toListing);
 }
 
-/** Una ficha por id. Las no publicadas solo se entregan con el token de quien la subió. */
-export async function getListing(id: string, token?: string | null): Promise<Listing | null> {
-  const rows = await query<ListingRow & { owner_token: string }>(
-    `SELECT id, status, data, contact_name, published_at, created_at, owner_token
+/** Publicados en un distrito o en todo un departamento (por nombre). */
+export async function listPublishedIn(place: { districtId?: number; department?: string }) {
+  const rows = await query<ListingRow>(
+    `SELECT id, status, data, contact_name, published_at, created_at
+       FROM listings
+      WHERE status = 'publicada'
+        AND ($1::int IS NULL OR district_id = $1)
+        AND ($2::text IS NULL OR region = $2)
+      ORDER BY published_at DESC NULLS LAST
+      LIMIT 60`,
+    [place.districtId ?? null, place.department ?? null],
+  );
+  return rows.map(toListing);
+}
+
+/** Lo mínimo de cada publicado, para el sitemap y para saber qué zonas tienen oferta. */
+export async function publishedIndex() {
+  return query<{ id: string; district_id: number | null; region: string; updated_at: string }>(
+    `SELECT id, district_id, region, updated_at FROM listings WHERE status = 'publicada'
+      ORDER BY updated_at DESC LIMIT 5000`,
+  );
+}
+
+/** Una ficha por id. Las no publicadas solo las ven quien las subió y el admin. */
+export async function getListing(
+  id: string,
+  userId?: string | null,
+  admin = false,
+): Promise<Listing | null> {
+  const rows = await query<ListingRow & { user_id: string | null }>(
+    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id
        FROM listings WHERE id = $1`,
     [id],
   );
   const row = rows[0];
   if (!row) return null;
-  const mine = Boolean(token) && token === row.owner_token;
-  if (row.status !== "publicada" && !mine) return null;
+  const mine = Boolean(userId) && userId === row.user_id;
+  // Lo no publicado lo ve su dueño; el admin también, para poder revisarlo.
+  if (row.status !== "publicada" && !mine && !admin) return null;
   return { ...toListing(row), isNew: mine || undefined };
 }
 
-export async function createListing(input: ListingInput) {
-  const { contact, plan, ...fields } = input;
+type Place = { district: string; municipality: string; department: string };
+
+/** Valida el distrito y arma la ficha y las columnas a partir del formulario. */
+async function prepare(input: ListingInput) {
+  const { contact, plan, districtId, ...fields } = input;
+  const places = await query<Place>(
+    `SELECT d.name AS district, m.name AS municipality, p.name AS department
+       FROM districts d
+       JOIN municipalities m ON m.id = d.municipality_id
+       JOIN departments p ON p.id = m.department_id
+      WHERE d.id = $1`,
+    [districtId],
+  );
+  const place = places[0];
+  if (!place) throw new InputError("Elige el distrito donde está la propiedad.");
+
   const rooms = fields.floors.flatMap((f) => f.rooms);
   const outdoor = new Set(["terraza", "balcon", "jardin", "patio", "piscina", "cochera", "muelle"]);
   const bedrooms = rooms.filter((r) => r.type === "dormitorio").length;
@@ -176,6 +221,11 @@ export async function createListing(input: ListingInput) {
   // Todo lo que suena a respaldo de AlquilasYa lo decide el servidor, nunca el formulario.
   const data: Omit<Listing, "id"> = {
     ...fields,
+    zone: place.district,
+    region: place.department,
+    municipality: place.municipality,
+    districtId,
+    colonia: fields.colonia || undefined,
     conditions: fields.conditions as Listing["conditions"],
     bedrooms,
     bathrooms,
@@ -190,40 +240,139 @@ export async function createListing(input: ListingInput) {
     publishedAt: day(new Date()),
   };
 
-  const ownerToken = randomBytes(24).toString("base64url");
-  const base = slugify(fields.title);
+  /** Columnas $2…$18, en el orden que usan el INSERT y el UPDATE. */
+  const columns = [
+    fields.title,
+    fields.type,
+    place.district,
+    place.department,
+    bedrooms,
+    bathrooms,
+    area,
+    fields.prices.mes ?? null,
+    fields.deposit,
+    contact.name,
+    contact.whatsapp,
+    contact.email || null,
+    plan,
+    districtId,
+    fields.lat,
+    fields.lng,
+  ];
+  return { data, columns, place, title: fields.title };
+}
+
+export async function createListing(input: ListingInput, owner: { id: string; email: string }) {
+  const { data, columns, place, title } = await prepare(input);
+  columns[11] ??= owner.email;
+  const base = slugify(`${title} ${place.district}`);
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = attempt === 0 ? base : `${base}-${randomBytes(2).toString("hex")}`;
     const rows = await query<{ id: string }>(
       `INSERT INTO listings
          (id, title, type, zone, region, bedrooms, bathrooms, area, price_month, deposit,
-          data, contact_name, contact_whatsapp, contact_email, plan, owner_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)
+          contact_name, contact_whatsapp, contact_email, plan, district_id, lat, lng, data, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,$19)
        ON CONFLICT (id) DO NOTHING
        RETURNING id`,
-      [
-        id,
-        fields.title,
-        fields.type,
-        fields.zone,
-        fields.region,
-        bedrooms,
-        bathrooms,
-        area,
-        fields.prices.mes ?? null,
-        fields.deposit,
-        JSON.stringify({ ...data, id }),
-        contact.name,
-        contact.whatsapp,
-        contact.email || null,
-        plan,
-        ownerToken,
-      ],
+      [id, ...columns, JSON.stringify({ ...data, id }), owner.id],
     );
-    if (rows[0]) return { id: rows[0].id, ownerToken };
+    if (rows[0]) return { id: rows[0].id };
   }
   throw new Error("No se pudo generar un identificador para el anuncio.");
+}
+
+/**
+ * Edición por su dueño o por el admin. Conserva la dirección (id) y el estado: un anuncio
+ * publicado sigue publicado y queda marcado como editado para revisión posterior.
+ * Uno rechazado vuelve a revisión.
+ */
+export async function updateListing(
+  id: string,
+  input: ListingInput,
+  editor: { id: string; email: string; admin?: boolean },
+) {
+  const { data, columns } = await prepare(input);
+  const rows = await query<{ id: string; status: ListingStatus }>(
+    `UPDATE listings SET
+        title = $2, type = $3, zone = $4, region = $5, bedrooms = $6, bathrooms = $7, area = $8,
+        price_month = $9, deposit = $10, contact_name = $11, contact_whatsapp = $12,
+        contact_email = $13, plan = $14, district_id = $15, lat = $16, lng = $17,
+        data = $18::jsonb,
+        status = CASE WHEN status = 'rechazada' THEN 'pendiente' ELSE status END,
+        edited_at = now(), updated_at = now()
+      WHERE id = $1 AND (user_id = $19 OR $20)
+      RETURNING id, status`,
+    // El admin puede corregir cualquier anuncio; el dueño sigue siendo el mismo.
+    [id, ...columns, JSON.stringify({ ...data, id }), editor.id, Boolean(editor.admin)],
+  );
+  return rows[0] ?? null;
+}
+
+/** Lo que necesita el formulario para editar: la ficha y los datos de contacto. Solo para su dueño o el admin. */
+export async function getListingForEdit(id: string, userId: string, admin = false) {
+  const rows = await query<{
+    data: Listing;
+    status: ListingStatus;
+    contact_name: string;
+    contact_whatsapp: string;
+    contact_email: string | null;
+  }>(
+    `SELECT data, status, contact_name, contact_whatsapp, contact_email
+       FROM listings WHERE id = $1 AND (user_id = $2 OR $3)`,
+    [id, userId, admin],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    listing: { ...row.data, id, status: row.status },
+    contact: { name: row.contact_name, whatsapp: row.contact_whatsapp, email: row.contact_email ?? "" },
+  };
+}
+
+/** Error que se puede mostrar tal cual a quien envía el formulario. */
+export class InputError extends Error {}
+
+/* ——— Panel de quien publica ——— */
+
+export async function accountOverview(userId: string) {
+  const [listings, inquiries] = await Promise.all([
+    query(
+      `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at
+         FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId],
+    ),
+    query(
+      `SELECT q.id, q.listing_id, q.listing_title, q.nombre, q.whatsapp, q.mensaje, q.plazo,
+              q.desde, q.created_at
+         FROM inquiries q JOIN listings l ON l.id = q.listing_id
+        WHERE l.user_id = $1
+        ORDER BY q.created_at DESC LIMIT 200`,
+      [userId],
+    ),
+  ]);
+  return { listings, inquiries };
+}
+
+/** Quien publica puede pausar, reactivar (vuelve a revisión) o borrar su anuncio. */
+export async function ownerAction(userId: string, id: string, action: "pausar" | "reactivar" | "borrar") {
+  if (action === "borrar") {
+    const rows = await query<{ id: string }>(
+      "DELETE FROM listings WHERE id = $1 AND user_id = $2 RETURNING id",
+      [id, userId],
+    );
+    return Boolean(rows[0]);
+  }
+  const rows = await query<{ id: string }>(
+    action === "pausar"
+      ? `UPDATE listings SET status = 'pausada', updated_at = now()
+          WHERE id = $1 AND user_id = $2 AND status = 'publicada' RETURNING id`
+      : `UPDATE listings SET status = 'pendiente', updated_at = now()
+          WHERE id = $1 AND user_id = $2 AND status = 'pausada' RETURNING id`,
+    [id, userId],
+  );
+  return Boolean(rows[0]);
 }
 
 /* ——— Mensajes a quien publica ——— */
@@ -231,7 +380,6 @@ export async function createListing(input: ListingInput) {
 export const inquiryInput = z.object({
   listingId: text(120).min(1),
   listingTitle: text(120).min(1),
-  example: z.boolean().default(false),
   nombre: text(80).min(2, "Escribe tu nombre"),
   whatsapp: z.string().regex(/^\+?[0-9\s\-]{8,20}$/, "Número de WhatsApp inválido"),
   mensaje: text(1500).min(5, "Escribe tu mensaje"),
@@ -249,27 +397,20 @@ export type InquiryInput = z.infer<typeof inquiryInput>;
  * WhatsApp de quien publicó para seguir la conversación directamente.
  */
 export async function createInquiry(input: InquiryInput) {
-  let owner: { name: string; whatsapp: string } | null = null;
-  let example = input.example;
-
-  if (!example) {
-    const rows = await query<{ contact_name: string; contact_whatsapp: string; status: string }>(
-      `SELECT contact_name, contact_whatsapp, status FROM listings WHERE id = $1`,
-      [input.listingId],
-    );
-    const row = rows[0];
-    if (!row) example = true;
-    else if (row.status === "publicada")
-      owner = { name: row.contact_name, whatsapp: row.contact_whatsapp };
+  const rows = await query<{ contact_name: string; contact_whatsapp: string; status: string }>(
+    "SELECT contact_name, contact_whatsapp, status FROM listings WHERE id = $1",
+    [input.listingId],
+  );
+  const row = rows[0];
+  if (!row || row.status !== "publicada") {
+    throw new InputError("Este anuncio ya no está disponible.");
   }
-
   await query(
     `INSERT INTO inquiries (listing_id, listing_title, is_example, nombre, whatsapp, mensaje, plazo, desde)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+     VALUES ($1,$2,false,$3,$4,$5,$6,$7)`,
     [
       input.listingId,
       input.listingTitle,
-      example,
       input.nombre,
       input.whatsapp,
       input.mensaje,
@@ -277,30 +418,53 @@ export async function createInquiry(input: InquiryInput) {
       input.desde ?? null,
     ],
   );
-  return { owner };
+  return { owner: { name: row.contact_name, whatsapp: row.contact_whatsapp } };
 }
 
 /* ——— Moderación ——— */
 
 export async function adminOverview() {
-  const [listings, inquiries, waitlist] = await Promise.all([
+  const [listings, inquiries, users, waitlist, totals] = await Promise.all([
     query(
-      `SELECT id, status, title, type, zone, price_month, contact_name, contact_whatsapp,
-              contact_email, plan, created_at, published_at
-         FROM listings ORDER BY created_at DESC LIMIT 200`,
+      `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
+              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, u.email AS owner_email
+         FROM listings l LEFT JOIN users u ON u.id = l.user_id
+        ORDER BY l.created_at DESC LIMIT 200`,
     ),
     query(
       `SELECT id, listing_id, listing_title, is_example, nombre, whatsapp, mensaje, plazo, desde, created_at
-         FROM inquiries ORDER BY created_at DESC LIMIT 200`,
+         FROM inquiries ORDER BY created_at DESC LIMIT 100`,
     ),
     query(
-      `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE tipo_usuario = 'propietario')::int AS propietarios,
-              COUNT(*) FILTER (WHERE tipo_usuario = 'inquilino')::int AS inquilinos
-         FROM waitlist`,
+      `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.created_at,
+              (u.email_verified_at IS NOT NULL) AS verified,
+              (SELECT count(*)::int FROM listings l WHERE l.user_id = u.id) AS listings
+         FROM users u ORDER BY u.created_at DESC LIMIT 200`,
+    ),
+    query(
+      `SELECT nombre, email, whatsapp, tipo_usuario, departamento, origen, created_at
+         FROM waitlist ORDER BY created_at DESC LIMIT 500`,
+    ),
+    // Monitoreo: totales y actividad de los últimos 7 días. Del chat solo se cuenta, no se lee.
+    query(
+      `SELECT
+        (SELECT count(*)::int FROM users) AS users,
+        (SELECT count(*)::int FROM users WHERE email_verified_at IS NOT NULL) AS users_verified,
+        (SELECT count(*)::int FROM users WHERE created_at > now() - interval '7 days') AS users_week,
+        (SELECT count(*)::int FROM listings) AS listings,
+        (SELECT count(*)::int FROM listings WHERE status = 'publicada') AS listings_published,
+        (SELECT count(*)::int FROM listings WHERE status = 'pendiente') AS listings_pending,
+        (SELECT count(*)::int FROM listings WHERE created_at > now() - interval '7 days') AS listings_week,
+        (SELECT count(*)::int FROM inquiries) AS inquiries,
+        (SELECT count(*)::int FROM inquiries WHERE created_at > now() - interval '7 days') AS inquiries_week,
+        (SELECT count(*)::int FROM conversations) AS conversations,
+        (SELECT count(*)::int FROM messages) AS messages,
+        (SELECT count(*)::int FROM messages WHERE created_at > now() - interval '7 days') AS messages_week,
+        (SELECT count(*)::int FROM waitlist) AS waitlist,
+        (SELECT count(*)::int FROM waitlist WHERE tipo_usuario = 'propietario') AS waitlist_owners`,
     ),
   ]);
-  return { listings, inquiries, waitlist: waitlist[0] ?? { total: 0, propietarios: 0, inquilinos: 0 } };
+  return { listings, inquiries, users, waitlist, totals: totals[0] };
 }
 
 export async function setListingStatus(id: string, status: ListingStatus) {

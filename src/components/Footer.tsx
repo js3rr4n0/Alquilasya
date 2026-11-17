@@ -6,13 +6,15 @@ import { Container } from "./ui";
 
 const SITE = [
   { to: "/explorar", label: "Explorar alquileres" },
-  { to: "/publicar", label: "Publicar una propiedad" },
+  { to: "/anunciar", label: "Publicar gratis" },
+  { to: "/guias", label: "Guías para alquilar" },
   { to: "/lista", label: "Lista de espera" },
 ];
 
-const SOON = [
-  { to: "/mensajes", label: "Mensajes dentro del sitio" },
-  { to: "/expediente", label: "Perfil de inquilino" },
+const ACCOUNT = [
+  { to: "/entrar", label: "Entrar o crear cuenta" },
+  { to: "/cuenta", label: "Mis anuncios" },
+  { to: "/mensajes", label: "Mensajes" },
 ];
 
 export function Footer() {
@@ -45,10 +47,10 @@ export function Footer() {
             </ul>
           </nav>
 
-          <nav aria-label="Próximamente">
-            <p className="label text-terracota-300">Próximamente</p>
+          <nav aria-label="Cuenta">
+            <p className="label text-terracota-300">Cuenta</p>
             <ul className="mt-5 space-y-2.5">
-              {SOON.map((s) => (
+              {ACCOUNT.map((s) => (
                 <li key={s.to}>
                   <Link to={s.to} className="text-[15px] text-piedra-300 hover:text-crema-100">
                     {s.label}
@@ -56,9 +58,6 @@ export function Footer() {
                 </li>
               ))}
             </ul>
-            <p className="mt-3 max-w-[30ch] text-[14px] leading-snug text-piedra-400">
-              Vistas de demostración con datos de ejemplo.
-            </p>
           </nav>
 
           <div>

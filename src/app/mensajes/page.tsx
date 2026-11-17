@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { Messages } from "@/views/Messages";
+import { Suspense } from "react";
+import { Chat } from "@/views/Chat";
 
-export const metadata: Metadata = { title: "Mensajes · demostración", robots: { index: false } };
+export const metadata: Metadata = { title: "Mensajes", robots: { index: false } };
 
 export default function Page() {
-  return <Messages />;
+  return (
+    <Suspense fallback={<div className="min-h-[60vh]" />}>
+      <Chat />
+    </Suspense>
+  );
 }

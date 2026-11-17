@@ -7,12 +7,12 @@ import { Link, useNavigate, useSearchParams } from "@/lib/router";
 import { DurationPicker } from "../components/DurationPicker";
 import { ListingCard } from "../components/ListingCard";
 import { DateField, ZoneField } from "../components/SearchBar";
-import { Button, Container, Folio } from "../components/ui";
+import { Button, buttonClass, Container, Folio } from "../components/ui";
 import { CONDITION_FILTERS } from "../data/conditions";
-import { ZONE_GROUPS } from "../data/listings";
 import type { ConditionKey, PropertyType } from "../data/types";
 import { DURATION, DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, money, plural } from "../lib/format";
+import { COUNTRY, parseZone, zoneLabel } from "../lib/geo";
 import { useStore } from "../lib/store";
 
 const ExploreMap = dynamic(() => import("../components/ExploreMap").then((m) => m.ExploreMap), {
@@ -50,9 +50,10 @@ export function Explore() {
     setConds((list) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]));
 
   const filtered = useMemo(() => {
-    const zones = zone ? [zone, ...(ZONE_GROUPS[zone] ?? [])] : null;
+    const place = parseZone(zone);
     const list = listings.filter((l) => {
-      if (zones && !zones.includes(l.zone) && l.region !== zone) return false;
+      if (place?.district && l.districtId !== place.district.id) return false;
+      if (place && !place.district && l.region !== place.department.name) return false;
       if (onlyForDuration && !l.prices[duration]) return false;
       if (type && l.type !== type) return false;
       if (beds > 0 && l.bedrooms < beds) return false;
@@ -71,11 +72,7 @@ export function Explore() {
       const pb = b.prices[duration] ?? 999999;
       if (sort === "menor") return pa - pb;
       if (sort === "mayor") return pb - pa;
-      // Real listings first, examples after; newest first within each group.
-      return (
-        Number(Boolean(a.example)) - Number(Boolean(b.example)) ||
-        b.publishedAt.localeCompare(a.publishedAt)
-      );
+      return b.publishedAt.localeCompare(a.publishedAt);
     });
   }, [
     listings,
@@ -90,6 +87,14 @@ export function Explore() {
     conds,
     sort,
   ]);
+
+  const place = parseZone(zone);
+  const focus = place?.district
+    ? { lat: place.district.lat, lng: place.district.lng, zoom: 13 }
+    : place
+      ? { lat: place.department.lat, lng: place.department.lng, zoom: 10 }
+      : COUNTRY;
+  const empty = listings.length === 0;
 
   const activeFilterCount =
     conds.length +
@@ -352,37 +357,61 @@ export function Explore() {
             <span className="font-semibold tabular-nums text-negro">
               {plural(filtered.length, "propiedad", "propiedades")}
             </span>
-            {zone && ` en ${zone}`} · precios por{" "}
+            {zone && ` en ${zoneLabel(zone)}`} · precios por{" "}
             <span className="font-medium text-negro">{DURATION[duration].label}</span>
           </p>
-          {filtered.some((l) => l.example) && (
-            <p className="text-[14px] text-grafito-600">
-              Los anuncios marcados «Ejemplo» son ilustrativos.{" "}
-              <Link to="/publicar" className="font-medium text-terracota-700 underline underline-offset-4">
-                Publica el tuyo gratis
-              </Link>
-            </p>
-          )}
+          <p className="text-[14px] text-grafito-600">
+            ¿Tienes un inmueble?{" "}
+            <Link to="/publicar" className="font-medium text-terracota-700 underline underline-offset-4">
+              Publícalo gratis
+            </Link>
+          </p>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-card bg-crema-050 px-6 py-16 text-center ring-1 ring-arena-200">
-            <h2 className="head text-[28px]">
-              Ninguna casa cumple todas esas condiciones a la vez.
-            </h2>
-            <p className="mx-auto mt-3 max-w-[46ch] text-[15px] text-grafito-600">
-              Prueba quitando algún filtro o mostrando también las que no se alquilan por{" "}
-              {DURATION[duration].label}.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              {onlyForDuration && (
-                <Button variant="outline" onClick={() => setOnlyForDuration(false)}>
-                  Ver todos los plazos
-                </Button>
-              )}
-              <Button variant="ink" onClick={clearAll}>
-                Quitar filtros
-              </Button>
+          <div className="grid items-start gap-8 lg:grid-cols-[1.22fr_0.78fr]">
+            <div className="rounded-card bg-crema-050 px-6 py-14 text-center ring-1 ring-arena-200 sm:px-10">
+              <h2 className="head text-balance text-[28px]">
+                {empty
+                  ? "Todavía no hay alquileres publicados."
+                  : zone && activeFilterCount === 1
+                    ? `Aún no hay alquileres en ${zoneLabel(zone)}.`
+                    : "Ningún alquiler cumple todos esos filtros a la vez."}
+              </h2>
+              <p className="mx-auto mt-3 max-w-[46ch] text-[16px] leading-relaxed text-grafito-600">
+                {empty
+                  ? "AlquilasYa está empezando. Si tienes un inmueble, publícalo gratis; si buscas, déjanos tu correo y te avisamos cuando haya opciones en tu zona."
+                  : "Prueba con otra zona, quita algún filtro o muestra también los que no se alquilan por ese plazo."}
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {!empty && onlyForDuration && (
+                  <Button variant="outline" onClick={() => setOnlyForDuration(false)}>
+                    Ver todos los plazos
+                  </Button>
+                )}
+                {!empty && activeFilterCount > 0 && (
+                  <Button variant="outline" onClick={clearAll}>
+                    Quitar filtros
+                  </Button>
+                )}
+                <Link to="/publicar" className={buttonClass("primary", "md")}>
+                  Publicar gratis
+                </Link>
+                <Link to="/lista" className={buttonClass("ink", "md")}>
+                  Avísenme
+                </Link>
+              </div>
+            </div>
+            <div className="map-warm hidden h-[460px] overflow-hidden rounded-card ring-1 ring-arena-200 lg:block">
+              <ExploreMap
+                listings={[]}
+                duration={duration}
+                activeId={null}
+                onActivate={() => {}}
+                onOpen={() => {}}
+                focus={focus}
+                className="size-full"
+              />
             </div>
           </div>
         ) : view === "mapa" ? (
@@ -393,6 +422,7 @@ export function Explore() {
               activeId={activeId}
               onActivate={setActiveId}
               onOpen={(id) => navigate(`/casa/${id}`)}
+              focus={focus}
               className="size-full"
             />
           </div>

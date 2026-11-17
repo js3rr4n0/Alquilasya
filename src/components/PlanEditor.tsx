@@ -17,7 +17,6 @@ import {
   ROOM_ORDER,
   ROOM_TYPES,
   VIEW_OPTIONS,
-  VIEW_SAMPLES,
 } from "../data/rooms";
 import type { Floor, Room, RoomType } from "../data/types";
 import { cx, dec, m2 } from "../lib/format";
@@ -141,12 +140,9 @@ export function PlanEditor({
       y: pos.y,
       w,
       h,
-      photos: meta.samples.slice(0, 2),
+      photos: [],
       features: meta.features.slice(0, 2),
-      view:
-        type === "terraza" || type === "balcon"
-          ? { label: "Al jardín", photo: "jardinTropical" }
-          : undefined,
+      view: undefined,
     };
     updateFloor({ rooms: [...floor.rooms, room] });
     setSelectedId(room.id);
@@ -708,21 +704,6 @@ export function PlanEditor({
                       </button>
                     </div>
                   ))}
-                  {ROOM_TYPES[selected.type].samples
-                    .filter((s) => !selected.photos.includes(s))
-                    .slice(0, 1)
-                    .map((sample) => (
-                      <button
-                        key={sample}
-                        type="button"
-                        onClick={() =>
-                          updateRoom(selected.id, { photos: [...selected.photos, sample] })
-                        }
-                        className="flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-[3px] border border-dashed border-piedra-300 text-[14px] font-medium text-grafito-600 hover:border-negro hover:text-negro"
-                      >
-                        <Plus className="size-3.5" /> Foto de muestra
-                      </button>
-                    ))}
                 </div>
               </div>
 
@@ -736,7 +717,7 @@ export function PlanEditor({
                       const label = e.target.value;
                       updateRoom(selected.id, {
                         view: label
-                          ? { label, photo: VIEW_SAMPLES[label] ?? selected.view?.photo }
+                          ? { label, photo: selected.view?.photo }
                           : undefined,
                       });
                     }}
@@ -749,6 +730,28 @@ export function PlanEditor({
                       </option>
                     ))}
                   </select>
+                  {selected.view && (
+                    <label className="mt-2 inline-flex min-h-9 cursor-pointer items-center gap-1.5 text-[14px] font-medium text-terracota-700 underline underline-offset-4">
+                      {selected.view.photo ? "Cambiar foto de la vista" : "Subir foto de la vista"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!file || !selected.view) return;
+                          const room = selected;
+                          try {
+                            const url = await uploadPhoto(file);
+                            updateRoom(room.id, { view: { label: room.view!.label, photo: url } });
+                          } catch (error) {
+                            toast.error(error instanceof Error ? error.message : "No se pudo subir la foto.");
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
                   {selected.view?.photo && (
                     <div className="mt-2 flex items-center gap-2.5 rounded-ctl bg-arena-200 p-2">
                       <img

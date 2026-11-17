@@ -9,7 +9,6 @@ export type RoomMeta = {
   /** Spaces where the view matters enough to ask for it. */
   view?: boolean;
   features: string[];
-  samples: string[];
 };
 
 export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
@@ -26,14 +25,12 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
       "Sofá cama",
       "Doble altura",
     ],
-    samples: ["salaBeige", "salaLuz", "salaChimenea"],
   },
   comedor: {
     label: "Comedor",
     w: 3.5,
     h: 3,
     features: ["Mesa para 4", "Mesa para 6", "Mesa para 8", "Luz natural"],
-    samples: ["comedorSol", "comedorLamparas", "comedorModerno"],
   },
   cocina: {
     label: "Cocina",
@@ -48,7 +45,6 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
       "Lavavajillas",
       "Cafetera",
     ],
-    samples: ["cocinaVentanas", "cocinaIsla", "cocinaConcreto"],
   },
   dormitorio: {
     label: "Dormitorio",
@@ -66,14 +62,12 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
       "Cortinas blackout",
       "Baño privado",
     ],
-    samples: ["dormMinimal", "dormCortinas", "camaRayas"],
   },
   bano: {
     label: "Baño",
     w: 2,
     h: 2.5,
     features: ["Ducha", "Tina", "Agua caliente", "Doble lavamanos", "Ventana"],
-    samples: ["banoPiedra", "banoArco", "banoTerracota"],
   },
   estudio: {
     label: "Estudio",
@@ -87,7 +81,6 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
       "Estantería",
       "Puerta a la calle",
     ],
-    samples: ["oficinaLibros", "oficinaVentana", "oficinaTejados"],
   },
   terraza: {
     label: "Terraza",
@@ -96,7 +89,6 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     outdoor: true,
     view: true,
     features: ["Techada", "Comedor exterior", "Hamacas", "Parrilla", "Iluminación"],
-    samples: ["patioMimbre", "terrazaMesa", "terrazaSofas"],
   },
   balcon: {
     label: "Balcón",
@@ -105,7 +97,6 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     outdoor: true,
     view: true,
     features: ["Barandal de vidrio", "Plantas", "Mesa para 2"],
-    samples: ["balconNoche", "azoteaBahia"],
   },
   jardin: {
     label: "Jardín",
@@ -113,7 +104,6 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     h: 4,
     outdoor: true,
     features: ["Cerrado", "Riego automático", "Árboles frutales", "Grama"],
-    samples: ["jardinBananos", "jardinTropical"],
   },
   patio: {
     label: "Patio",
@@ -121,7 +111,6 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     h: 4,
     outdoor: true,
     features: ["Fuente", "Plantas", "Corredor techado"],
-    samples: ["claustroPalmas", "claustroRojo", "patioPlantas"],
   },
   piscina: {
     label: "Piscina",
@@ -130,14 +119,12 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     outdoor: true,
     view: true,
     features: ["Climatizada", "Infinita", "Con cerco", "Iluminada"],
-    samples: ["piscinaInfinita", "piscinaPalmeras"],
   },
   lavanderia: {
     label: "Lavandería",
     w: 2,
     h: 2,
     features: ["Lavadora", "Secadora", "Pila", "Tendedero"],
-    samples: ["cocinaMadera"],
   },
   cochera: {
     label: "Cochera",
@@ -145,14 +132,12 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     h: 5.5,
     outdoor: true,
     features: ["Techada", "1 vehículo", "2 vehículos", "Portón eléctrico"],
-    samples: ["casaTropicalAutos"],
   },
   pasillo: {
     label: "Pasillo",
     w: 1.2,
     h: 4,
     features: ["Clóset de visitas"],
-    samples: ["puertaLuz", "puertaMadera"],
   },
   muelle: {
     label: "Muelle",
@@ -161,14 +146,12 @@ export const ROOM_TYPES: Record<RoomType, RoomMeta> = {
     outdoor: true,
     view: true,
     features: ["Escalera al agua", "Kayaks", "Hamaca"],
-    samples: ["coatepequeMuelle", "coatepequeNiebla"],
   },
   bodega: {
     label: "Bodega",
     w: 1.5,
     h: 2,
     features: ["Estantes"],
-    samples: ["cocinaMadera"],
   },
 };
 
@@ -202,15 +185,5 @@ export const VIEW_OPTIONS = [
   "Interior, sin vista",
 ];
 
-/** Photos that can stand in for a view, keyed by the view label. */
-export const VIEW_SAMPLES: Record<string, string> = {
-  "Al mar": "tuncoAtardecer",
-  "Al lago": "lagoVolcanes",
-  "Al volcán de San Salvador": "volcanNoche",
-  "A la montaña": "deckLago",
-  "A la ciudad": "volcanAtardecer",
-  "Al jardín": "jardinTropical",
-  "A la calle": "suchitotoCalle",
-};
 
 export const area = (r: { w: number; h: number }) => Math.round(r.w * r.h * 100) / 100;

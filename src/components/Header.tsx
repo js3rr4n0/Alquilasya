@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "@/lib/router";
 import { Logotipo } from "../brand/Logo";
 import { cx } from "../lib/format";
+import { useStore } from "../lib/store";
 import { ButtonLink } from "./ui";
 
 const NAV = [
@@ -16,6 +17,15 @@ const NAV = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { user, unread } = useStore();
+  const account = user
+    ? { to: "/cuenta", label: user.name.split(" ")[0] }
+    : { to: "/entrar", label: "Entrar" };
+  const nav = [
+    ...NAV.filter((n) => !user || n.to !== "/lista"),
+    ...(user ? [{ to: "/mensajes", label: "Mensajes" }] : []),
+    ...(user?.admin ? [{ to: "/admin", label: "Admin" }] : []),
+  ];
 
   useEffect(() => setOpen(false), [location.pathname]);
   useEffect(() => {
@@ -35,7 +45,7 @@ export function Header() {
         </Link>
 
         <nav aria-label="Principal" className="hidden items-center gap-1 md:flex">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -49,6 +59,12 @@ export function Header() {
               {({ isActive }) => (
                 <>
                   {item.label}
+                  {item.to === "/mensajes" && unread > 0 && (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-terracota-400 px-1.5 text-[12px] font-semibold tabular-nums text-negro">
+                      {unread}
+                      <span className="sr-only"> sin leer</span>
+                    </span>
+                  )}
                   {isActive && (
                     <span
                       aria-hidden
@@ -62,6 +78,9 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ButtonLink to={account.to} variant="ghostLight" size="sm">
+            {account.label}
+          </ButtonLink>
           <ButtonLink to="/publicar" variant="cream" size="sm">
             Publicar gratis
           </ButtonLink>
@@ -85,7 +104,7 @@ export function Header() {
           className="dots fixed inset-x-0 bottom-0 top-[68px] z-[999] animate-fade overflow-y-auto bg-negro md:hidden"
         >
           <nav aria-label="Principal" className="flex flex-col px-5 pt-6 sm:px-8">
-            {[{ to: "/", label: "Inicio" }, ...NAV].map((item, i) => (
+            {[{ to: "/", label: "Inicio" }, ...nav, { to: account.to, label: user ? "Mi cuenta" : "Entrar" }].map((item, i) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -98,7 +117,9 @@ export function Header() {
                 }
               >
                 <span className="serif text-[34px] leading-none">{item.label}</span>
-                <span className="label text-terracota-300">0{i + 1}</span>
+                <span className="label text-terracota-300">
+                  {item.to === "/mensajes" && unread > 0 ? `${unread} sin leer` : `0${i + 1}`}
+                </span>
               </NavLink>
             ))}
           </nav>
