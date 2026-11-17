@@ -52,6 +52,7 @@ const EVENT_LABEL: Record<string, string> = {
   pagina: "Vio",
   busqueda: "Buscó",
   ficha_vista: "Abrió la ficha",
+  compartido: "Compartió",
   contacto_abierto: "Quiso escribir",
   mensaje_enviado: "Envió un mensaje",
   cuenta_creada: "Creó su cuenta",

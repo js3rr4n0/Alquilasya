@@ -16,12 +16,13 @@ const NAV = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  const { user, unread } = useStore();
+  const { user, unread, favorites } = useStore();
   const account = user
     ? { to: "/cuenta", label: user.name.split(" ")[0] }
     : { to: "/entrar", label: "Entrar" };
   const nav = [
     ...NAV,
+    { to: "/guardadas", label: "Guardadas" },
     ...(user ? [{ to: "/mensajes", label: "Mensajes" }] : []),
     ...(user?.admin ? [{ to: "/admin", label: "Admin" }] : []),
   ];
@@ -58,6 +59,12 @@ export function Header() {
               {({ isActive }) => (
                 <>
                   {item.label}
+                  {item.to === "/guardadas" && favorites.length > 0 && (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-crema-100/15 px-1.5 text-[12px] font-semibold tabular-nums text-crema-100">
+                      {favorites.length}
+                      <span className="sr-only"> guardadas</span>
+                    </span>
+                  )}
                   {item.to === "/mensajes" && unread > 0 && (
                     <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-terracota-400 px-1.5 text-[12px] font-semibold tabular-nums text-negro">
                       {unread}

@@ -14,7 +14,7 @@ export type Conversion =
   | "mensaje_enviado"
   | "lista_espera";
 
-export type EventName = Conversion | "pagina" | "tiempo" | "busqueda" | "ficha_vista" | "contacto_abierto";
+export type EventName = Conversion | "pagina" | "tiempo" | "busqueda" | "ficha_vista" | "contacto_abierto" | "compartido";
 
 type Props = Record<string, string | number | boolean>;
 type Gtag = (command: "event", name: string, params?: Props) => void;
