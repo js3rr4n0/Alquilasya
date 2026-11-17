@@ -78,7 +78,7 @@ export function Admin() {
     if (user?.admin) load();
   }, [user, load]);
 
-  async function setStatus(id: string, status: Status | { destacar: 0 | 7 | 30 }) {
+  async function setStatus(id: string, status: Status | { destacar: 0 | 1 | 7 | 30 }) {
     setBusy(true);
     setError("");
     const res = await fetch("/api/admin", {
@@ -229,9 +229,18 @@ export function Admin() {
                     </Button>
                   ) : (
                     l.status !== "rechazada" && (
-                      <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, { destacar: 7 })}>
-                        Destacar 7 días
-                      </Button>
+                      <select
+                        aria-label="Destacar gratis"
+                        disabled={busy}
+                        value=""
+                        onChange={(e) => e.target.value && setStatus(l.id, { destacar: Number(e.target.value) as 1 | 7 | 30 })}
+                        className="h-9 rounded-ctl bg-crema-050 px-2.5 text-[14px] ring-1 ring-piedra-250"
+                      >
+                        <option value="">Destacar gratis…</option>
+                        <option value="1">1 día</option>
+                        <option value="7">7 días</option>
+                        <option value="30">30 días</option>
+                      </select>
                     )
                   )}
                   {l.status !== "rechazada" && (
