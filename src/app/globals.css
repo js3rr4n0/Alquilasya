@@ -1,1 +1,348 @@
 @import "tailwindcss";
+
+/*
+ * AlquilasYa · Sistema Umbral
+ * One chromatic voice: crema 62 %, negro 22 %, arena 8 %, terracota 8 %.
+ * Terracota is brand and action, never a state. No gradients.
+ */
+@theme {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-negro: #0a0a0a;
+  --color-tinta-900: #17130f;
+  --color-tinta-800: #251e17;
+  --color-grafito-700: #3b3129;
+  --color-grafito-600: #564940;
+  --color-piedra-500: #6f6155;
+  --color-piedra-400: #948779;
+  --color-piedra-300: #bdb2a5;
+  --color-piedra-250: #d6ccbe;
+  --color-arena-200: #ede9df;
+  --color-crema-100: #f5f2eb;
+  --color-crema-050: #fbf9f5;
+
+  --color-terracota-900: #3f1605;
+  --color-terracota-800: #5e2108;
+  --color-terracota-700: #8a340c;
+  --color-terracota-600: #a8410f;
+  --color-terracota-500: #bf4a13;
+  --color-terracota-400: #d4541a;
+  --color-terracota-300: #e5875a;
+  --color-terracota-200: #f2ba9b;
+  --color-terracota-100: #f9dece;
+  --color-terracota-050: #fdf0e8;
+
+  --color-exito: #1f6b4a;
+  --color-exito-bg: #e6f1eb;
+  --color-aviso: #7a5a10;
+  --color-aviso-bg: #f6eeda;
+  --color-error: #9e1b12;
+  --color-error-bg: #fae4e1;
+  --color-info: #1b4f8f;
+  --color-info-bg: #e6edf7;
+
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-card: 6px;
+  --radius-ctl: 4px;
+
+  --tracking-label: 0.14em;
+  --tracking-tightest: -0.045em;
+  --tracking-display: -0.035em;
+  --tracking-head: -0.028em;
+
+  --ease-umbral: cubic-bezier(0.2, 0.7, 0.1, 1);
+
+  --breakpoint-3xl: 1720px;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-crema-100);
+    color: var(--color-negro);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.55;
+    font-variation-settings: "wdth" 100;
+  }
+
+  ::selection {
+    background-color: var(--color-negro);
+    color: var(--color-crema-100);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-negro);
+    outline-offset: 2px;
+  }
+
+  .on-dark :focus-visible,
+  .on-dark:focus-visible {
+    outline-color: var(--color-crema-100);
+  }
+
+  svg.lucide {
+    stroke-width: 1.5;
+    flex-shrink: 0;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Display serif: Fraunces Light at its largest optical size, as in the manual. */
+@utility serif {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.032em;
+}
+
+/* Smaller serif sizes keep enough hairline to survive on screen. */
+@utility serif-text {
+  font-family: var(--font-display);
+  font-weight: 350;
+  font-variation-settings: "opsz" 36;
+  letter-spacing: -0.012em;
+}
+
+/* Structural headlines: grotesk, heavy, tight, always closed with a period. */
+@utility head {
+  font-family: var(--font-sans);
+  font-weight: 650;
+  letter-spacing: var(--tracking-head);
+  line-height: 1.02;
+}
+
+/* Mono labels — folios, eyebrows and data keys. */
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@utility label-sm {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@utility mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "zero" 0;
+}
+
+/* The dotted field that sits behind black planes in the manual. */
+@utility dots {
+  background-image: radial-gradient(
+    circle at center,
+    rgb(245 242 235 / 0.085) 1px,
+    transparent 1.35px
+  );
+  background-size: 22px 22px;
+  background-position: 11px 11px;
+}
+
+@utility dots-ink {
+  background-image: radial-gradient(circle at center, rgb(10 10 10 / 0.09) 1px, transparent 1.35px);
+  background-size: 22px 22px;
+  background-position: 11px 11px;
+}
+
+/* Architectural hatch for outdoor areas. */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(10 10 10 / 0.16) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@keyframes cut {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@utility animate-rise {
+  animation: rise 0.7s var(--ease-umbral) both;
+}
+
+@utility animate-fade {
+  animation: fade 0.5s var(--ease-umbral) both;
+}
+
+@utility animate-pillar {
+  transform-origin: top;
+  animation: cut 0.9s 0.25s var(--ease-umbral) both;
+}
+
+/* ——— Map (Leaflet) ——— */
+.plan-room {
+  outline: none;
+}
+
+.plan-room:focus-visible > rect:first-child {
+  stroke: var(--color-negro);
+  stroke-width: 3.5px;
+}
+
+.map-warm .leaflet-container {
+  background: var(--color-arena-200);
+  font-family: var(--font-sans);
+}
+
+.map-warm .leaflet-tile-pane {
+  filter: grayscale(1) sepia(0.22) contrast(0.92) brightness(1.04);
+}
+
+.map-warm .leaflet-control-attribution {
+  background: rgb(245 242 235 / 0.88);
+  color: var(--color-grafito-600);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.map-warm .leaflet-control-attribution a {
+  color: var(--color-grafito-700);
+}
+
+.map-warm .leaflet-bar a {
+  background: var(--color-crema-050);
+  color: var(--color-negro);
+  border-color: var(--color-piedra-250);
+  border-radius: 0 !important;
+}
+
+.map-warm .leaflet-bar {
+  border: 1px solid var(--color-piedra-250);
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.price-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -100%);
+  padding: 5px 9px 5px;
+  white-space: nowrap;
+  background: var(--color-crema-050);
+  color: var(--color-negro);
+  border: 1px solid var(--color-negro);
+  border-radius: 3px;
+  font: 600 13px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+  position: relative;
+}
+
+.price-pin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 1px;
+  height: 5px;
+  background: var(--color-negro);
+}
+
+.price-pin.is-active {
+  background: var(--color-negro);
+  color: var(--color-crema-100);
+  z-index: 1000;
+}
+
+.price-pin small {
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
