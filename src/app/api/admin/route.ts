@@ -31,7 +31,7 @@ export const POST = endpoint({
       status: z.enum(["pendiente", "publicada", "rechazada", "pausada"]),
     }),
     // Destacar a mano: 7 o 30 días, o 0 para quitarlo.
-    z.object({ id: z.string().min(1).max(120), destacar: z.union([z.literal(0), z.literal(1), z.literal(7), z.literal(30)]) }),
+    z.object({ id: z.string().min(1).max(120), destacar: z.number().int().min(0).max(365) }),
   ]),
   run: async ({ input }) => {
     const ok =
