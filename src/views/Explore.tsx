@@ -419,7 +419,7 @@ export function Explore() {
               </h2>
               <p className="mx-auto mt-3 max-w-[46ch] text-[16px] leading-relaxed text-grafito-600">
                 {empty
-                  ? "AlquilasYa está empezando. Si tienes un inmueble, publícalo gratis; si buscas, déjanos tu correo y te avisamos cuando haya opciones en tu zona."
+                  ? "AlquilasYa está empezando. Si tienes un inmueble, publícalo gratis y sé de los primeros."
                   : "Prueba con otra zona, quita algún filtro o muestra también los que no se alquilan por ese plazo."}
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -435,9 +435,6 @@ export function Explore() {
                 )}
                 <Link to="/publicar" className={buttonClass("primary", "md")}>
                   Publicar gratis
-                </Link>
-                <Link to="/lista" className={buttonClass("ink", "md")}>
-                  Avísenme
                 </Link>
               </div>
             </div>
