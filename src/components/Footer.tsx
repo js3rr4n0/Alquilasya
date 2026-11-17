@@ -8,7 +8,6 @@ const SITE = [
   { to: "/explorar", label: "Explorar alquileres" },
   { to: "/anunciar", label: "Publicar gratis" },
   { to: "/guias", label: "Guías para alquilar" },
-  { to: "/lista", label: "Lista de espera" },
 ];
 
 const ACCOUNT = [

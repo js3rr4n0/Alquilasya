@@ -127,7 +127,7 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
               lead={
                 featured.length
                   ? "Cambia la duración y mira el total para ese plazo."
-                  : "AlquilasYa está empezando en El Salvador. Publica tu inmueble gratis o déjanos tu correo y te avisamos cuando haya opciones en tu zona."
+                  : "AlquilasYa está empezando en El Salvador. Si tienes un inmueble, publícalo gratis y sé de los primeros."
               }
             />
             {featured.length > 0 ? (
@@ -142,9 +142,6 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
                 <div className="flex flex-wrap items-center gap-3">
                   <ButtonLink to="/publicar" variant="primary" size="md">
                     Publicar gratis <ArrowRight className="size-4" />
-                  </ButtonLink>
-                  <ButtonLink to="/lista" variant="outline" size="md">
-                    Avísenme
                   </ButtonLink>
                 </div>
               )
@@ -387,8 +384,8 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
               {
                 t: "Escribe al propietario",
                 d: "Solo entonces dejas tu nombre y tu WhatsApp con tu pregunta. Sin registro y sin intermediarios.",
-                to: "/lista",
-                cta: "Unirme a la lista de espera",
+                to: "/entrar?modo=crear",
+                cta: "Crear mi cuenta",
               },
             ].map((step, i) => (
               <li

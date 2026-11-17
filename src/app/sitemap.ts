@@ -20,7 +20,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
-    { url: abs("/lista"), lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: abs("/privacidad"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     ...departments.map((d) => ({
       url: abs(`/alquiler/${d.slug}`),

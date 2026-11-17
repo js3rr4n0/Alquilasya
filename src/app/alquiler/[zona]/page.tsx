@@ -185,15 +185,12 @@ export default async function Page({ params }: Props) {
               Aún no hay alquileres publicados en {name}.
             </h2>
             <p className="mx-auto mt-3 max-w-[48ch] text-[16px] leading-relaxed text-grafito-600">
-              Si tienes una casa o un apartamento aquí, publícalo gratis. Si buscas, déjanos tu
-              correo y te avisamos cuando haya opciones.
+              Si tienes una casa o un apartamento aquí, publícalo gratis. Si buscas, revisa los
+              otros distritos de {department.name} más abajo.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <ButtonLink to="/publicar" variant="primary">
                 Publicar gratis
-              </ButtonLink>
-              <ButtonLink to="/lista" variant="ink">
-                Avísenme
               </ButtonLink>
             </div>
           </div>
