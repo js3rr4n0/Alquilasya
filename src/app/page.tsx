@@ -32,7 +32,7 @@ export default async function Page() {
             url: SITE_URL,
             logo: abs("/brand/alquilasya-sello-terracota.svg"),
             description: SITE_DESCRIPTION,
-            email: "hola@alquilasya.com",
+            email: "contacto@alquilasya.com",
             areaServed: { "@type": "Country", name: "El Salvador" },
           },
           {

@@ -18,7 +18,7 @@ Next.js 16 (App Router) · Tailwind CSS 4 · Postgres (Neon) · Vercel Blob.
 | `/publicar` | Formulario guiado (pide cuenta); el anuncio queda **en revisión**. Con `?editar=` edita uno propio |
 | `/anunciar`, `/guias` | Aterrizaje para propietarios y guías para buscadores y asistentes de IA |
 | `/lista` | Lista de espera |
-| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): moderación, usuarios y totales |
+| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): visitas (analítica propia con gráficas), moderación, usuarios y totales |
 | `/api/health` | Para un monitor externo: 200 si el sitio y la base responden |
 
 La base arranca **sin propiedades**. Las casas de ejemplo solo ilustran la

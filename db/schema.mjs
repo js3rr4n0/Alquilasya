@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -193,6 +193,39 @@ export const SCHEMA = [
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages (conversation_id, id)`,
+
+  // Analítica propia. Sin IP completa: solo una huella cifrada para contar únicos,
+  // y la ubicación aproximada que Vercel deduce de la IP.
+  `CREATE TABLE IF NOT EXISTS analytics_events (
+    id             BIGSERIAL PRIMARY KEY,
+    at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    name           TEXT NOT NULL,
+    visitor_id     TEXT NOT NULL,
+    session_id     TEXT NOT NULL,
+    user_id        BIGINT,
+    path           TEXT,
+    referrer_host  TEXT,
+    utm_source     TEXT,
+    utm_medium     TEXT,
+    utm_campaign   TEXT,
+    country        TEXT,
+    region         TEXT,
+    city           TEXT,
+    lat            DOUBLE PRECISION,
+    lng            DOUBLE PRECISION,
+    timezone       TEXT,
+    device         TEXT,
+    os             TEXT,
+    browser        TEXT,
+    screen         TEXT,
+    lang           TEXT,
+    ip_hash        TEXT,
+    duration_ms    INTEGER,
+    props          JSONB
+  )`,
+  `CREATE INDEX IF NOT EXISTS analytics_at_idx ON analytics_events (at DESC)`,
+  `CREATE INDEX IF NOT EXISTS analytics_name_at_idx ON analytics_events (name, at DESC)`,
+  `CREATE INDEX IF NOT EXISTS analytics_session_idx ON analytics_events (session_id, at)`,
 
   `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,

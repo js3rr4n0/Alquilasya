@@ -14,6 +14,7 @@ import { DURATION, DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, money, plural } from "../lib/format";
 import { COUNTRY, parseZone, zoneLabel } from "../lib/geo";
 import { useStore } from "../lib/store";
+import { send } from "../lib/track";
 
 const ExploreMap = dynamic(() => import("../components/ExploreMap").then((m) => m.ExploreMap), {
   ssr: false,
@@ -83,6 +84,15 @@ export function Explore() {
           setPages(d.pages ?? 1);
           setPage(1);
           setStatus("listo");
+          send("busqueda", {
+            props: {
+              zona: zone ? zoneLabel(zone) : "Todo El Salvador",
+              plazo: duration,
+              tipo: type || "todos",
+              filtros: conds.length + (beds > 0 ? 1 : 0) + (maxPrice > 0 ? 1 : 0),
+              resultados: d.total ?? 0,
+            },
+          });
         })
         .catch((e) => e.name !== "AbortError" && setStatus("error"));
     }, 150);

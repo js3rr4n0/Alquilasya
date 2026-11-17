@@ -13,7 +13,7 @@ const SECTIONS = [
       "Lista de espera: nombre, correo, WhatsApp, departamento y si buscas o publicas.",
       "Al publicar: los datos del anuncio y tu nombre, WhatsApp y correo de contacto.",
       "Al escribirle a quien publica: los mensajes que envías y recibes en el chat.",
-      "En tu navegador se guardan tus casas favoritas y una cookie de sesión para mantenerte dentro de tu cuenta. No usamos cookies de publicidad. Medimos visitas y velocidad con Vercel Analytics, que no usa cookies ni identifica a las personas. Si activamos Google Analytics o Google Ads para medir campañas, esos servicios sí usan cookies.",
+      "En tu navegador se guardan tus casas favoritas y una cookie de sesión para mantenerte dentro de tu cuenta. No usamos cookies de publicidad. Medimos visitas y velocidad con Vercel Analytics y con una analítica propia: guardamos qué páginas se abren, cuánto tiempo, qué se busca, desde qué ciudad aproximada (según la conexión), el tipo de dispositivo, sistema y navegador, y de qué sitio llegaste. Para eso tu navegador guarda un identificador aleatorio, sin tu nombre ni tu correo. No guardamos tu dirección IP: solo una huella irreversible para contar visitantes únicos. Estos datos se borran a los 13 meses, y si tu navegador envía la señal «no rastrear» (Global Privacy Control o Do Not Track) no se registra nada. Si activamos Google Analytics o Google Ads para medir campañas, esos servicios sí usan cookies.",
     ],
   },
   {
@@ -28,7 +28,7 @@ const SECTIONS = [
   {
     title: "Cómo pedir la baja o una corrección",
     body: [
-      "Escribe a hola@alquilasya.com desde el correo que registraste. Borramos o corregimos tus datos y retiramos tu anuncio si lo pides.",
+      "Escribe a contacto@alquilasya.com desde el correo que registraste. Borramos o corregimos tus datos y retiramos tu anuncio si lo pides.",
     ],
   },
   {
