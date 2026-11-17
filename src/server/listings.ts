@@ -115,6 +115,7 @@ type ListingRow = {
   contact_name: string;
   published_at: string | null;
   created_at: string;
+  promoted?: boolean;
 };
 
 function slugify(title: string) {
@@ -138,18 +139,19 @@ function toListing(row: ListingRow): Listing {
     status: row.status,
     contactName: row.contact_name,
     publishedAt: day(row.published_at ?? row.created_at),
+    promoted: row.promoted || undefined,
   };
 }
 
 /** Publicados en un distrito o en todo un departamento (por nombre). */
 export async function listPublishedIn(place: { districtId?: number; department?: string }) {
   const rows = await query<ListingRow>(
-    `SELECT id, status, data, contact_name, published_at, created_at
+    `SELECT id, status, data, contact_name, published_at, created_at, (featured_until > now()) IS TRUE AS promoted
        FROM listings
       WHERE status = 'publicada'
         AND ($1::int IS NULL OR district_id = $1)
         AND ($2::text IS NULL OR region = $2)
-      ORDER BY published_at DESC NULLS LAST
+      ORDER BY (featured_until > now()) IS TRUE DESC, published_at DESC NULLS LAST
       LIMIT 60`,
     [place.districtId ?? null, place.department ?? null],
   );
@@ -327,11 +329,16 @@ export class InputError extends Error {}
 
 export async function accountOverview(userId: string) {
   const listings = await query(
-    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at
+    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at, featured_until
        FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
     [userId],
   );
-  return { listings };
+  const payments = await query(
+    `SELECT id, listing_id, listing_title, plan, days, amount, status, created_at, paid_at
+       FROM payments WHERE user_id = $1 AND status = 'pagada' ORDER BY created_at DESC LIMIT 30`,
+    [userId],
+  );
+  return { listings, payments };
 }
 
 /** Quien publica puede pausar, reactivar (vuelve a revisión) o borrar su anuncio. */

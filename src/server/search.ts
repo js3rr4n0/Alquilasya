@@ -95,6 +95,7 @@ type SummaryRow = {
   prices: ListingSummary["prices"];
   conditions: ListingSummary["conditions"];
   published: string;
+  promoted: boolean;
   total: string;
 };
 
@@ -105,13 +106,15 @@ export async function searchListings(p: SearchParams) {
       ? `${w.price} ASC NULLS LAST, l.published_at DESC`
       : p.orden === "mayor"
         ? `${w.price} DESC NULLS LAST, l.published_at DESC`
-        : "l.published_at DESC NULLS LAST, l.created_at DESC";
+        : // Los destacados pagados van primero; entre ellos y entre el resto, lo más reciente.
+          "(l.featured_until > now()) IS TRUE DESC, l.published_at DESC NULLS LAST, l.created_at DESC";
   const offset = (p.pagina - 1) * p.limite;
 
   const rows = await query<SummaryRow>(
     `SELECT l.id, l.title, l.type, l.zone, l.region, l.bedrooms, l.bathrooms, l.area, l.lat, l.lng,
             l.data->>'cover' AS cover, l.data->'prices' AS prices, l.data->'conditions' AS conditions,
             COALESCE(l.published_at, l.created_at) AS published,
+            (l.featured_until > now()) IS TRUE AS promoted,
             count(*) OVER () AS total
        FROM listings l
       WHERE ${w.sql}
@@ -135,6 +138,7 @@ export async function searchListings(p: SearchParams) {
     prices: r.prices ?? {},
     conditions: r.conditions ?? [],
     publishedAt: new Date(r.published).toISOString().slice(0, 10),
+    promoted: r.promoted || undefined,
   }));
   let total = Number(rows[0]?.total ?? 0);
   // Una página más allá del final no trae filas ni total: se cuenta aparte.

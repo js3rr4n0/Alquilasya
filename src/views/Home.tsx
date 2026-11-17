@@ -298,9 +298,9 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
                 Sin comisión ni intermediario.
               </h2>
               <p className="mt-4 max-w-[44ch] text-[16px] leading-relaxed text-piedra-300">
-                El trato es directo entre quien alquila y quien busca. Más adelante, quien publique
-                podrá pagar para destacar su anuncio; siempre llevará la etiqueta{" "}
-                <strong className="font-semibold text-crema-100">Anuncio</strong> y nunca cambiará
+                El trato es directo entre quien alquila y quien busca. Quien publica puede pagar,
+                si quiere, para destacar su anuncio; siempre lleva la etiqueta{" "}
+                <strong className="font-semibold text-crema-100">Anuncio</strong> y nunca cambia
                 el precio del alquiler.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">

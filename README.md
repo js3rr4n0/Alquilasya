@@ -18,7 +18,8 @@ Next.js 16 (App Router) · Tailwind CSS 4 · Postgres (Neon) · Vercel Blob.
 | `/publicar` | Formulario guiado (pide cuenta); el anuncio queda **en revisión**. Con `?editar=` edita uno propio |
 | `/anunciar`, `/guias` | Aterrizaje para propietarios y guías para buscadores y asistentes de IA |
 | `/lista` | Lista de espera |
-| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): visitas (analítica propia con gráficas), moderación, usuarios y totales |
+| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): visitas (analítica propia con gráficas), pagos, moderación, usuarios y totales |
+| `/pago` | Vuelta desde Wompi: confirma el pago del destacado consultando el API |
 | `/api/health` | Para un monitor externo: 200 si el sitio y la base responden |
 
 La base arranca **sin propiedades**. Las casas de ejemplo solo ilustran la
@@ -35,9 +36,13 @@ portada; no aparecen en los resultados.
 4. En **Settings → Environment Variables** añade `ADMIN_EMAILS` (tu correo),
    `NEXT_PUBLIC_SITE_URL` y, cuando verifiques el dominio en Search Console,
    `GOOGLE_SITE_VERIFICATION`.
-5. Activa **Analytics** y **Speed Insights** en el proyecto de Vercel: el
+5. **Pagos (Wompi)**: añade `WOMPI_APP_ID` y `WOMPI_API_SECRET` (panel.wompi.sv →
+   tu negocio). El sitio crea un enlace de pago por cada orden y lo confirma
+   consultando el API de Wompi; el webhook (`/api/pagos/webhook`) se configura
+   solo en cada enlace. Precios y duraciones en `src/lib/plans.ts`.
+6. Activa **Analytics** y **Speed Insights** en el proyecto de Vercel: el
    código ya está en el sitio.
-6. Vuelve a desplegar. Las tablas se crean solas durante el build
+7. Vuelve a desplegar. Las tablas se crean solas durante el build
    (`scripts/migrate.mjs`) y, por si acaso, en el primer acceso a la base.
 
 Ver `.env.example` para la lista completa de variables.
