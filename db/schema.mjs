@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -270,6 +270,13 @@ export const SCHEMA = [
     UNIQUE (listing_id, reporter_key)
   )`,
   `CREATE INDEX IF NOT EXISTS reports_open_idx ON reports (status, created_at DESC)`,
+  // v12: anuncios guardados en la cuenta (también viven en el navegador).
+  `CREATE TABLE IF NOT EXISTS saved_listings (
+    user_id     BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    listing_id  TEXT NOT NULL REFERENCES listings (id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, listing_id)
+  )`,
 
   `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,

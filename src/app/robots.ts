@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { abs, SITE_URL } from "@/lib/site";
 
-const PRIVATE = ["/api/", "/admin", "/cuenta", "/pago", "/entrar", "/verificar", "/mensajes"];
+const PRIVATE = ["/api/", "/admin", "/cuenta", "/pago", "/guardadas", "/entrar", "/verificar", "/mensajes"];
 
 export default function robots(): MetadataRoute.Robots {
   return {

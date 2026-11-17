@@ -65,7 +65,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: l.summary,
       url: `/casa/${l.id}`,
       type: "article",
-      images: [{ url: photoUrl(l.cover, 1200, 630), width: 1200, height: 630, alt: l.title }],
+      // Con foto, la foto misma; sin foto, la tarjeta con precio y zona (vista-previa/route.tsx).
+      images: [
+        l.cover && /^https:\/\//.test(l.cover)
+          ? { url: l.cover, alt: l.title }
+          : { url: `/casa/${encodeURIComponent(l.id)}/vista-previa`, width: 1200, height: 630, alt: l.title },
+      ],
     },
   };
 }

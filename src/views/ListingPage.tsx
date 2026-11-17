@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, MessageSquare, Share2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "@/lib/router";
 import { Calendar, overlapsBooked } from "../components/Calendar";
 import { ConditionsLegend, ConditionsSheet } from "../components/ConditionsSheet";
 import { ContactDialog } from "../components/ContactDialog";
 import { ReportButton } from "../components/ReportDialog";
+import { ShareButton } from "../components/ShareButton";
+import { abs } from "../lib/site";
 import { DurationPicker } from "../components/DurationPicker";
 import { PlanExplorer } from "../components/FloorPlan";
 import { ListingCard, roomsLabel, SaveButton, spaceCount } from "../components/ListingCard";
@@ -55,7 +57,6 @@ export function ListingPage({ initial }: { initial?: Listing }) {
   }, [id]);
   const [contactOpen, setContactOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
 
   const availableDurations = useMemo(
@@ -134,12 +135,6 @@ export function ListingPage({ initial }: { initial?: Listing }) {
   const end = endDate(effectiveStart, effectiveDuration);
   const conflict = overlapsBooked(effectiveStart, effectiveDuration, listing.booked);
 
-  function share() {
-    navigator.clipboard?.writeText(window.location.href);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
-  }
-
   const ask = () => {
     send("contacto_abierto", { props: { anuncio: listing!.id } });
     setContactOpen(true);
@@ -214,9 +209,12 @@ export function ListingPage({ initial }: { initial?: Listing }) {
                 Ver las {allPhotos.length} fotos
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={share}>
-              <Share2 className="size-4" /> {copied ? "Enlace copiado" : "Compartir"}
-            </Button>
+            <ShareButton
+              url={abs(`/casa/${listing.id}`)}
+              title={listing.title}
+              text={`${listing.title} · ${listing.zone}, ${listing.region}. Míralo en AlquilasYa:`}
+              listingId={listing.id}
+            />
             <SaveButton id={listing.id} />
           </div>
         </div>

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Badge, Button, ButtonLink, Container, Switch } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { PLANS, usd, type PlanId } from "../lib/plans";
+import { abs } from "../lib/site";
+import { ShareButton } from "../components/ShareButton";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useStore, type Account as User } from "../lib/store";
 
@@ -161,6 +163,9 @@ export function Account() {
           <ButtonLink to="/mensajes" variant="outline">
             Mensajes
           </ButtonLink>
+          <ButtonLink to="/guardadas" variant="outline">
+            Guardadas
+          </ButtonLink>
           <ButtonLink to="/publicar" variant="primary">
             <Plus className="size-4" /> Publicar una propiedad
           </ButtonLink>
@@ -256,6 +261,15 @@ export function Account() {
                         >
                           {featured(l) ? "Extender destacado" : l.status === "pendiente" ? "Destacar y publicar ya" : "Destacar"}
                         </Button>
+                      )}
+                      {l.status === "publicada" && (
+                        <ShareButton
+                          url={abs(`/casa/${l.id}`)}
+                          title={l.title}
+                          text={`${l.title} · ${l.zone}, ${l.region}. Míralo en AlquilasYa:`}
+                          listingId={l.id}
+                          variant="outline"
+                        />
                       )}
                       {l.status === "publicada" && (
                         <Button variant="outline" size="sm" disabled={busy} onClick={() => act(l.id, "pausar")}>

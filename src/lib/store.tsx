@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode, useRef } from "react";
 import type { Listing } from "../data/types";
 import type { DurationKey } from "./durations";
 import { isoDay } from "./format";
@@ -84,6 +77,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setHydrated(true);
   }, []);
 
+  // Con cuenta, lo guardado se junta con lo de la cuenta (una vez por sesión de la página).
+  const syncedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hydrated || !user || syncedFor.current === user.id) return;
+    syncedFor.current = user.id;
+    fetch("/api/guardadas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ add: state.favorites.slice(0, 200) }),
+    })
+      .then((r) => (r.ok ? (r.json() as Promise<{ ids: string[] }>) : null))
+      .then((d) => d && setState((s) => ({ ...s, favorites: d.ids })))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al entrar
+  }, [hydrated, user]);
+
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -141,17 +150,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
       setUser(null);
       setUnread(0);
+      // Lo guardado ya está en la cuenta: este navegador no lo conserva para la siguiente persona.
+      syncedFor.current = null;
+      setState((s) => ({ ...s, favorites: [] }));
     },
     setDuration: (duration) => setState((s) => ({ ...s, duration })),
     setStart: (start) => setState((s) => ({ ...s, start })),
     setZone: (zone) => setState((s) => ({ ...s, zone })),
-    toggleFavorite: (id) =>
+    toggleFavorite: (id) => {
+      const saved = state.favorites.includes(id);
       setState((s) => ({
         ...s,
-        favorites: s.favorites.includes(id)
-          ? s.favorites.filter((f) => f !== id)
-          : [...s.favorites, id],
-      })),
+        favorites: saved ? s.favorites.filter((f) => f !== id) : [id, ...s.favorites],
+      }));
+      if (user) {
+        fetch("/api/guardadas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(saved ? { remove: [id] } : { add: [id] }),
+        }).catch(() => {});
+      }
+    },
     fetchListing,
   };
 
