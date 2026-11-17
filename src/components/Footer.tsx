@@ -62,8 +62,8 @@ export function Footer() {
           <div>
             <p className="label text-terracota-300">Cómo nos sostenemos</p>
             <p className="mt-5 text-[15px] leading-relaxed text-piedra-300">
-              Publicar es gratis y no cobramos comisión. Más adelante, quien publique podrá pagar
-              para destacar su anuncio, y siempre irá marcado como{" "}
+              Publicar es gratis y no cobramos comisión. Quien publica puede pagar, si quiere, para
+              destacar su anuncio, y siempre va marcado como{" "}
               <span className="text-crema-100">Anuncio</span>.
             </p>
           </div>

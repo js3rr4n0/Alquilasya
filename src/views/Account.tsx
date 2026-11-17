@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, ButtonLink, Container } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
+import { PLANS, usd, type PlanId } from "../lib/plans";
 import { Link, useNavigate } from "../lib/router";
 import { useStore, type Account as User } from "../lib/store";
 
@@ -18,7 +19,13 @@ type ListingRow = {
   region: string;
   price_month: string | null;
   created_at: string;
+  featured_until: string | null;
 };
+type PaymentRow = { id: string; listing_title: string; plan: PlanId; amount: string; paid_at: string | null };
+
+const dateEs = (v: string) =>
+  new Intl.DateTimeFormat("es", { day: "numeric", month: "long", timeZone: "America/El_Salvador" }).format(new Date(v));
+const featured = (l: ListingRow) => Boolean(l.featured_until && new Date(l.featured_until) > new Date());
 
 const STATUS: Record<Status, { label: string; tone: "aviso" | "exito" | "error" | "neutral"; hint: string }> = {
   pendiente: { label: "En revisión", tone: "aviso", hint: "Lo revisamos antes de mostrarlo al público." },
@@ -37,6 +44,9 @@ export function Account() {
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [busy, setBusy] = useState(false);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [featuring, setFeaturing] = useState<string | null>(null);
+  const [paying, setPaying] = useState<PlanId | null>(null);
 
   useEffect(() => {
     if (authLoaded && !user) navigate("/entrar?next=/cuenta", { replace: true });
@@ -52,8 +62,9 @@ export function Account() {
   const load = useCallback(async () => {
     const res = await fetch("/api/account");
     if (!res.ok) return;
-    const data = (await res.json()) as { listings: ListingRow[] };
+    const data = (await res.json()) as { listings: ListingRow[]; payments?: PaymentRow[] };
     setListings(data.listings);
+    setPayments(data.payments ?? []);
   }, []);
 
   useEffect(() => {
@@ -71,6 +82,22 @@ export function Account() {
     if (!res.ok) toast.error("No se pudo aplicar el cambio.");
     await load();
     setBusy(false);
+  }
+
+  async function pay(listingId: string, plan: PlanId) {
+    setPaying(plan);
+    const res = await fetch("/api/pagos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId, plan }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    if (res.ok && data.url) {
+      window.location.assign(data.url);
+      return;
+    }
+    toast.error(data.error ?? "No pudimos abrir la página de pago.");
+    setPaying(null);
   }
 
   async function saveProfile(e: React.FormEvent) {
@@ -158,10 +185,12 @@ export function Account() {
             ) : (
               <ul className="mt-4 divide-y divide-arena-200 rounded-card bg-crema-050 ring-1 ring-arena-200">
                 {listings.map((l) => (
-                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
+                  <li key={l.id} className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={STATUS[l.status].tone}>{STATUS[l.status].label}</Badge>
+                        {featured(l) && <Badge tone="neutral">Destacado hasta el {dateEs(l.featured_until!)}</Badge>}
                         <Link
                           to={`/casa/${l.id}`}
                           className="text-[17px] font-semibold underline-offset-4 hover:underline"
@@ -180,6 +209,16 @@ export function Account() {
                         Editar
                       </ButtonLink>
                       {l.status === "publicada" && (
+                        <Button
+                          variant={featuring === l.id ? "ink" : "primary"}
+                          size="sm"
+                          aria-expanded={featuring === l.id}
+                          onClick={() => setFeaturing(featuring === l.id ? null : l.id)}
+                        >
+                          {featured(l) ? "Extender destacado" : "Destacar"}
+                        </Button>
+                      )}
+                      {l.status === "publicada" && (
                         <Button variant="outline" size="sm" disabled={busy} onClick={() => act(l.id, "pausar")}>
                           Pausar
                         </Button>
@@ -193,11 +232,65 @@ export function Account() {
                         Borrar
                       </Button>
                     </div>
+                  </div>
+                  {featuring === l.id && l.status === "publicada" && (
+                    <div className="mt-4 rounded-ctl bg-crema-100 p-4 ring-1 ring-arena-200">
+                      <p className="text-[15px] text-grafito-700">
+                        Tu anuncio aparece <strong className="font-semibold text-negro">primero en las búsquedas</strong> de
+                        su zona, con la etiqueta «Anuncio». Publicar sigue siendo gratis; esto es opcional.
+                        {featured(l) && " Los días se suman a los que ya tienes."}
+                      </p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {PLANS.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            disabled={paying !== null}
+                            onClick={() => pay(l.id, p.id)}
+                            className="rounded-ctl bg-crema-050 p-4 text-left ring-1 ring-piedra-250 transition hover:ring-negro disabled:opacity-60"
+                          >
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span className="text-[16px] font-semibold text-negro">{p.name}</span>
+                              <span className="text-[20px] font-semibold text-negro">{usd(p.price)}</span>
+                            </span>
+                            <span className="mt-1 block text-[14px] text-grafito-600">
+                              {paying === p.id ? "Abriendo Wompi…" : p.blurb}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-[13px] text-grafito-600">
+                        Pagas con tarjeta en la página segura de Wompi (Banco Agrícola). Un solo pago, sin
+                        renovación automática. El destacado se activa apenas Wompi confirma el cobro.
+                      </p>
+                    </div>
+                  )}
                   </li>
                 ))}
               </ul>
             )}
           </section>
+
+          {payments.length > 0 && (
+            <section aria-labelledby="mis-pagos">
+              <h2 id="mis-pagos" className="head text-[24px]">
+                Mis pagos.
+              </h2>
+              <ul className="mt-4 divide-y divide-arena-200 rounded-card bg-crema-050 ring-1 ring-arena-200">
+                {payments.map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-3 px-5 py-3.5 text-[15px]">
+                    <span className="min-w-0">
+                      <span className="font-medium text-negro">{PLANS.find((x) => x.id === p.plan)?.name ?? p.plan}</span>
+                      <span className="text-grafito-600"> · {p.listing_title}</span>
+                    </span>
+                    <span className="text-grafito-700">
+                      {usd(Number(p.amount))} · {p.paid_at ? dateEs(p.paid_at) : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section aria-labelledby="mensajes-recibidos" className="rounded-card bg-crema-050 p-6 ring-1 ring-arena-200">
             <h2 id="mensajes-recibidos" className="head text-[24px]">

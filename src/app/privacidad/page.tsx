@@ -13,6 +13,7 @@ const SECTIONS = [
       "Lista de espera: nombre, correo, WhatsApp, departamento y si buscas o publicas.",
       "Al publicar: los datos del anuncio y tu nombre, WhatsApp y correo de contacto.",
       "Al escribirle a quien publica: los mensajes que envías y recibes en el chat.",
+      "Si destacas un anuncio: el plan, el monto, la fecha y el número de transacción que nos da Wompi. Los datos de la tarjeta los maneja Wompi, nunca pasan por AlquilasYa.",
       "En tu navegador se guardan tus casas favoritas y una cookie de sesión para mantenerte dentro de tu cuenta. No usamos cookies de publicidad. Medimos visitas y velocidad con Vercel Analytics y con una analítica propia: guardamos qué páginas se abren, cuánto tiempo, qué se busca, desde qué ciudad aproximada (según la conexión), el tipo de dispositivo, sistema y navegador, y de qué sitio llegaste. Para eso tu navegador guarda un identificador aleatorio, sin tu nombre ni tu correo. No guardamos tu dirección IP: solo una huella irreversible para contar visitantes únicos. Estos datos se borran a los 13 meses, y si tu navegador envía la señal «no rastrear» (Global Privacy Control o Do Not Track) no se registra nada. Si activamos Google Analytics o Google Ads para medir campañas, esos servicios sí usan cookies.",
     ],
   },
@@ -38,6 +39,7 @@ const SECTIONS = [
       "Quien publica responde por que la información de su anuncio sea cierta y por tener derecho a alquilar el inmueble. Retiramos los anuncios falsos, engañosos o ilegales.",
       "Las casas marcadas como «Ejemplo» en la portada son ilustrativas: no corresponden a inmuebles disponibles.",
       "Antes de pagar o firmar, visita el inmueble y verifica a la otra parte.",
+      "Destacar un anuncio es opcional y se paga una sola vez con tarjeta en la página de Wompi (Banco Agrícola); AlquilasYa no ve ni guarda los datos de tu tarjeta. El anuncio destacado aparece primero en las búsquedas, con la etiqueta «Anuncio», durante los días del plan, contados desde que se confirma el pago. No se renueva solo. Destacar no salta la revisión: si retiramos un anuncio por incumplir estas reglas, el tiempo destacado no se devuelve. Si hubo un cobro por error, escríbenos a contacto@alquilasya.com.",
     ],
   },
 ];

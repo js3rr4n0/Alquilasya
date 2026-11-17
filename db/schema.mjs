@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -226,6 +226,30 @@ export const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS analytics_at_idx ON analytics_events (at DESC)`,
   `CREATE INDEX IF NOT EXISTS analytics_name_at_idx ON analytics_events (name, at DESC)`,
   `CREATE INDEX IF NOT EXISTS analytics_session_idx ON analytics_events (session_id, at)`,
+
+  // v9: anuncios destacados pagados con Wompi.
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ`,
+  `CREATE INDEX IF NOT EXISTS listings_featured_idx ON listings (featured_until) WHERE featured_until IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS payments (
+    id            TEXT PRIMARY KEY,
+    listing_id    TEXT REFERENCES listings (id) ON DELETE SET NULL,
+    user_id       BIGINT REFERENCES users (id) ON DELETE SET NULL,
+    listing_title TEXT NOT NULL,
+    user_email    TEXT NOT NULL,
+    plan          TEXT NOT NULL,
+    days          INTEGER NOT NULL,
+    amount        NUMERIC(10,2) NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'pendiente'
+                  CHECK (status IN ('pendiente', 'pagada', 'fallida', 'vencida')),
+    wompi_link_id BIGINT,
+    wompi_url     TEXT,
+    wompi_tx_id   TEXT UNIQUE,
+    live          BOOLEAN,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    paid_at       TIMESTAMPTZ
+  )`,
+  `CREATE INDEX IF NOT EXISTS payments_user_idx ON payments (user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS payments_created_idx ON payments (created_at DESC)`,
 
   `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,

@@ -2,7 +2,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 /**
  * Envío de correos con Resend (API HTTP, sin dependencia).
- * Variables: RESEND_API_KEY y MAIL_FROM («AlquilasYa <hola@tu-dominio>»,
+ * Variables: RESEND_API_KEY y MAIL_FROM («AlquilasYa <contacto@tu-dominio>»,
  * con el dominio verificado en Resend).
  */
 export const mailConfigured = () => Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
