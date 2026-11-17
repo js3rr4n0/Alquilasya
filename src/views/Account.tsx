@@ -19,15 +19,6 @@ type ListingRow = {
   price_month: string | null;
   created_at: string;
 };
-type InquiryRow = {
-  id: string;
-  listing_id: string;
-  listing_title: string;
-  nombre: string;
-  whatsapp: string;
-  mensaje: string;
-  created_at: string;
-};
 
 const STATUS: Record<Status, { label: string; tone: "aviso" | "exito" | "error" | "neutral"; hint: string }> = {
   pendiente: { label: "En revisión", tone: "aviso", hint: "Lo revisamos antes de mostrarlo al público." },
@@ -36,21 +27,13 @@ const STATUS: Record<Status, { label: string; tone: "aviso" | "exito" | "error" 
   rechazada: { label: "No publicado", tone: "error", hint: "Escríbenos para saber qué corregir." },
 };
 
-const when = (iso: string) =>
-  new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 
-function waLink(whatsapp: string) {
-  let digits = whatsapp.replace(/\D/g, "");
-  if (digits.length === 8) digits = `503${digits}`;
-  return `https://wa.me/${digits}`;
-}
 
 /** Panel de quien publica: estado de sus anuncios, mensajes recibidos y datos de contacto. */
 export function Account() {
   const { user, authLoaded, setUser, logout } = useStore();
   const navigate = useNavigate();
   const [listings, setListings] = useState<ListingRow[] | null>(null);
-  const [inquiries, setInquiries] = useState<InquiryRow[]>([]);
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,9 +52,8 @@ export function Account() {
   const load = useCallback(async () => {
     const res = await fetch("/api/account");
     if (!res.ok) return;
-    const data = (await res.json()) as { listings: ListingRow[]; inquiries: InquiryRow[] };
+    const data = (await res.json()) as { listings: ListingRow[] };
     setListings(data.listings);
-    setInquiries(data.inquiries);
   }, []);
 
   useEffect(() => {
@@ -217,41 +199,17 @@ export function Account() {
             )}
           </section>
 
-          <section aria-labelledby="mensajes-recibidos">
-            <h2 id="mensajes-recibidos" className="head text-[26px]">
-              Contactos sin cuenta.
+          <section aria-labelledby="mensajes-recibidos" className="rounded-card bg-crema-050 p-6 ring-1 ring-arena-200">
+            <h2 id="mensajes-recibidos" className="head text-[24px]">
+              Mensajes.
             </h2>
-            <p className="mt-2 text-[14px] text-grafito-600">
-              Personas que te escribieron desde la ficha sin registrarse. El chat con quienes sí
-              tienen cuenta está en Mensajes.
+            <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
+              Quien se interesa por tu anuncio te escribe desde su cuenta, por el chat privado. Ahí
+              respondes; tu número no se muestra a nadie.
             </p>
-            {inquiries.length === 0 ? (
-              <p className="mt-3 text-[16px] text-grafito-600">
-                Aún no hay ninguno.
-              </p>
-            ) : (
-              <ul className="mt-4 divide-y divide-arena-200 rounded-card bg-crema-050 ring-1 ring-arena-200">
-                {inquiries.map((q) => (
-                  <li key={q.id} className="p-5">
-                    <p className="text-[14px] text-grafito-600">
-                      {when(q.created_at)} · {q.listing_title}
-                    </p>
-                    <p className="mt-1 text-[16px] font-semibold">{q.nombre}</p>
-                    <p className="mt-1 max-w-[70ch] text-[15px] leading-relaxed text-grafito-700">
-                      {q.mensaje}
-                    </p>
-                    <a
-                      href={waLink(q.whatsapp)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-1.5 text-[15px] font-semibold text-terracota-700 underline underline-offset-4"
-                    >
-                      Responder por WhatsApp ({q.whatsapp}) <ArrowRight className="size-4" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ButtonLink to="/mensajes" variant="ink" className="mt-4">
+              Abrir Mensajes <ArrowRight className="size-4" />
+            </ButtonLink>
           </section>
         </div>
 

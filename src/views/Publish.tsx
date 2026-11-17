@@ -646,8 +646,8 @@ export function Publish() {
               <div className="border-t border-arena-200 pt-6">
                 <h3 className="head text-[22px]">Cómo te contactan.</h3>
                 <p className="mt-1.5 text-[15px] leading-snug text-grafito-600">
-                  Tu WhatsApp no aparece en el anuncio: solo lo ve quien ya te envió un mensaje
-                  desde tu ficha.
+                  Tu WhatsApp no aparece en el anuncio ni se muestra a quien te escribe: los mensajes
+                  llegan al chat privado del sitio. Lo usamos solo para avisarte sobre tu anuncio.
                 </p>
                 <div className="mt-4 grid gap-5 sm:grid-cols-2">
                   <label className="block">
