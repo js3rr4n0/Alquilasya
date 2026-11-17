@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { uploadPhoto } from "../lib/upload";
 import { Copy, Eye, ImagePlus, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import {
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -52,6 +53,69 @@ function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   pt.y = clientY;
   const ctm = svg.getScreenCTM();
   return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+}
+
+/**
+ * Número en metros que se puede escribir con libertad (borrar, poner «35», usar coma).
+ * Solo al terminar (salir del campo o Enter) se ajusta a los límites y se aplica;
+ * corregirlo en cada tecla hacía imposible escribir en el teléfono.
+ */
+function MetresField({
+  value,
+  min,
+  max,
+  onCommit,
+  className,
+  ariaLabel,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (v: number) => void;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [text, setText] = useState(String(value).replace(".", ","));
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setText(String(value).replace(".", ","));
+  }, [value, editing]);
+
+  function commit() {
+    setEditing(false);
+    const n = Number(text.replace(",", ".").replace(/[^\d.]/g, ""));
+    if (!text.trim() || !Number.isFinite(n) || n <= 0) {
+      setText(String(value).replace(".", ","));
+      return;
+    }
+    // Medio metro de precisión, dentro de los límites.
+    const v = Math.min(max, Math.max(min, Math.round(n * 2) / 2));
+    onCommit(v);
+    setText(String(v).replace(".", ","));
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      enterKeyHint="done"
+      aria-label={ariaLabel}
+      value={text}
+      onFocus={(e) => {
+        setEditing(true);
+        e.currentTarget.select();
+      }}
+      onChange={(e) => setText(e.target.value.slice(0, 6))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      className={className}
+    />
+  );
 }
 
 function findSlot(floor: Floor, w: number, h: number) {
@@ -344,26 +408,22 @@ export function PlanEditor({
         <div className="flex flex-wrap items-center gap-4 text-[14px]">
           <label className="inline-flex items-center gap-1.5 text-grafito-700">
             <span>Ancho:</span>
-            <input
-              type="number"
+            <MetresField
+              value={floor.width}
               min={6}
               max={28}
-              step={0.5}
-              value={floor.width}
-              onChange={(e) => updateFloor({ width: clamp(Number(e.target.value) || 12, 6, 28) })}
+              onCommit={(v) => updateFloor({ width: v })}
               className="h-8 w-14 rounded-ctl bg-crema-100 px-2 text-center font-semibold tabular-nums text-negro ring-1 ring-piedra-250"
             />
             <span>m</span>
           </label>
           <label className="inline-flex items-center gap-1.5 text-grafito-700">
             <span>Fondo:</span>
-            <input
-              type="number"
+            <MetresField
+              value={floor.height}
               min={6}
               max={24}
-              step={0.5}
-              value={floor.height}
-              onChange={(e) => updateFloor({ height: clamp(Number(e.target.value) || 10, 6, 24) })}
+              onCommit={(v) => updateFloor({ height: v })}
               className="h-8 w-14 rounded-ctl bg-crema-100 px-2 text-center font-semibold tabular-nums text-negro ring-1 ring-piedra-250"
             />
             <span>m</span>
@@ -628,33 +688,21 @@ export function PlanEditor({
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <label className="block">
                   <span className="label-sm text-grafito-600">Ancho (m)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={floor.width}
-                    step={0.5}
+                  <MetresField
                     value={selected.w}
-                    onChange={(e) =>
-                      updateRoom(selected.id, {
-                        w: clamp(Number(e.target.value) || 1, 1, floor.width - selected.x),
-                      })
-                    }
+                    min={1}
+                    max={floor.width - selected.x}
+                    onCommit={(v) => updateRoom(selected.id, { w: v })}
                     className="mt-1 h-10 w-full rounded-ctl bg-crema-100 px-2.5 text-[14px] font-semibold tabular-nums ring-1 ring-piedra-250"
                   />
                 </label>
                 <label className="block">
                   <span className="label-sm text-grafito-600">Largo (m)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={floor.height}
-                    step={0.5}
+                  <MetresField
                     value={selected.h}
-                    onChange={(e) =>
-                      updateRoom(selected.id, {
-                        h: clamp(Number(e.target.value) || 1, 1, floor.height - selected.y),
-                      })
-                    }
+                    min={1}
+                    max={floor.height - selected.y}
+                    onCommit={(v) => updateRoom(selected.id, { h: v })}
                     className="mt-1 h-10 w-full rounded-ctl bg-crema-100 px-2.5 text-[14px] font-semibold tabular-nums ring-1 ring-piedra-250"
                   />
                 </label>
