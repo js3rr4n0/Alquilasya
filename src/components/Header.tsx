@@ -11,7 +11,6 @@ import { ButtonLink } from "./ui";
 const NAV = [
   { to: "/explorar", label: "Explorar" },
   { to: "/publicar", label: "Publicar" },
-  { to: "/lista", label: "Lista de espera" },
 ];
 
 export function Header() {
@@ -22,7 +21,7 @@ export function Header() {
     ? { to: "/cuenta", label: user.name.split(" ")[0] }
     : { to: "/entrar", label: "Entrar" };
   const nav = [
-    ...NAV.filter((n) => !user || n.to !== "/lista"),
+    ...NAV,
     ...(user ? [{ to: "/mensajes", label: "Mensajes" }] : []),
     ...(user?.admin ? [{ to: "/admin", label: "Admin" }] : []),
   ];
