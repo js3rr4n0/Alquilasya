@@ -39,7 +39,7 @@ const SECTIONS = [
       "Quien publica responde por que la información de su anuncio sea cierta y por tener derecho a alquilar el inmueble. Retiramos los anuncios falsos, engañosos o ilegales.",
       "Las casas marcadas como «Ejemplo» en la portada son ilustrativas: no corresponden a inmuebles disponibles.",
       "Antes de pagar o firmar, visita el inmueble y verifica a la otra parte.",
-      "Destacar un anuncio es opcional y se paga una sola vez con tarjeta en la página de Wompi (Banco Agrícola); AlquilasYa no ve ni guarda los datos de tu tarjeta. El anuncio destacado aparece primero en las búsquedas, con la etiqueta «Anuncio», durante los días del plan, contados desde que se confirma el pago. No se renueva solo. Destacar no salta la revisión: si retiramos un anuncio por incumplir estas reglas, el tiempo destacado no se devuelve. Si hubo un cobro por error, escríbenos a contacto@alquilasya.com.",
+      "Destacar un anuncio es opcional y se paga una sola vez con tarjeta en la página de Wompi (Banco Agrícola); AlquilasYa no ve ni guarda los datos de tu tarjeta. El anuncio destacado aparece primero en las búsquedas, con la etiqueta «Anuncio», durante los días del plan, contados desde que se confirma el pago. No se renueva solo. Al pagar, el anuncio se publica de inmediato, sin esperar la revisión; aun así lo revisamos, y si incumple estas reglas lo retiramos y el tiempo destacado no se devuelve. Si hubo un cobro por error, escríbenos a contacto@alquilasya.com.",
     ],
   },
 ];

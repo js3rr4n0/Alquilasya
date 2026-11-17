@@ -21,6 +21,7 @@ type ListingRow = {
   contact_whatsapp: string;
   owner_email: string | null;
   edited_at: string | null;
+  featured_until: string | null;
   created_at: string;
 };
 type UserRow = {
@@ -75,13 +76,13 @@ export function Admin() {
     if (user?.admin) load();
   }, [user, load]);
 
-  async function setStatus(id: string, status: Status) {
+  async function setStatus(id: string, status: Status | { destacar: 0 | 7 | 30 }) {
     setBusy(true);
     setError("");
     const res = await fetch("/api/admin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify(typeof status === "string" ? { id, status } : { id, ...status }),
     });
     if (!res.ok) setError("No se pudo actualizar el anuncio.");
     await load();
@@ -181,6 +182,9 @@ export function Admin() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={TONE[l.status]}>{l.status}</Badge>
                     {l.edited_at && <Badge tone="info">Editado {when(l.edited_at)}</Badge>}
+                    {l.featured_until && new Date(l.featured_until) > new Date() && (
+                      <Badge tone="neutral">Destacado hasta {when(l.featured_until)}</Badge>
+                    )}
                     <span className="text-[16px] font-semibold">{l.title}</span>
                   </div>
                   <p className="mt-1 text-[14px] text-grafito-600">
@@ -211,6 +215,17 @@ export function Admin() {
                     <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, "pausada")}>
                       Pausar
                     </Button>
+                  )}
+                  {l.featured_until && new Date(l.featured_until) > new Date() ? (
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, { destacar: 0 })}>
+                      Quitar destacado
+                    </Button>
+                  ) : (
+                    l.status !== "rechazada" && (
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, { destacar: 7 })}>
+                        Destacar 7 días
+                      </Button>
+                    )
                   )}
                   {l.status !== "rechazada" && (
                     <Button variant="ghost" size="sm" disabled={busy} onClick={() => setStatus(l.id, "rechazada")}>

@@ -367,7 +367,7 @@ export async function adminOverview() {
   const [listings, users, waitlist, totals] = await Promise.all([
     query(
       `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
-              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, u.email AS owner_email
+              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, l.featured_until, u.email AS owner_email
          FROM listings l LEFT JOIN users u ON u.id = l.user_id
         ORDER BY l.created_at DESC LIMIT 200`,
     ),
@@ -410,6 +410,25 @@ export async function setListingStatus(id: string, status: ListingStatus) {
       WHERE id = $1
       RETURNING id`,
     [id, status],
+  );
+  return Boolean(rows[0]);
+}
+
+/**
+ * Destacado manual desde admin (cortesía o corrección), sin cobro. Con días > 0
+ * publica el anuncio si estaba en revisión y suma los días; con 0 lo quita.
+ */
+export async function setFeatured(id: string, days: number) {
+  const rows = await query<{ id: string }>(
+    days > 0
+      ? `UPDATE listings
+            SET featured_until = GREATEST(COALESCE(featured_until, now()), now()) + make_interval(days => $2),
+                status = CASE WHEN status = 'pendiente' THEN 'publicada' ELSE status END,
+                published_at = CASE WHEN status = 'pendiente' THEN COALESCE(published_at, now()) ELSE published_at END,
+                updated_at = now()
+          WHERE id = $1 RETURNING id`
+      : `UPDATE listings SET featured_until = NULL, updated_at = now() WHERE id = $1 AND $2 = 0 RETURNING id`,
+    [id, days],
   );
   return Boolean(rows[0]);
 }

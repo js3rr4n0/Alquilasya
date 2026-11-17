@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { planById, type PlanId } from "@/lib/plans";
 import { abs } from "@/lib/site";
 import { AuthError } from "./auth";
+import { refreshPublicPages } from "./http";
 import { createPaymentLink, linkStatus, wompiConfigured } from "./wompi";
 
 /**
@@ -46,8 +47,9 @@ export async function startPayment(user: { id: string; email: string }, listingI
     [listingId, user.id],
   );
   if (!listing) throw new AuthError("No encontramos ese anuncio en tu cuenta.", 404);
-  if (listing.status !== "publicada") {
-    throw new AuthError("Solo se puede destacar un anuncio publicado. Espera a que lo aprobemos.", 409);
+  // Pagar publica al instante: no hace falta esperar la revisión.
+  if (listing.status !== "publicada" && listing.status !== "pendiente") {
+    throw new AuthError("Este anuncio no se puede destacar ahora. Reactívalo o escríbenos.", 409);
   }
 
   const [open] = await query<PaymentRow>(
@@ -108,16 +110,21 @@ export async function confirmPayment(id: string) {
   if (approved && amountOk && realOk) {
     // Orden y anuncio en una sola sentencia: si dos avisos llegan a la vez, solo uno activa.
     // Si ya estaba destacado, los días se suman al final del periodo vigente.
-    await query(
+    const activated = await query(
       `WITH p AS (
          UPDATE payments SET status = 'pagada', paid_at = now(), wompi_tx_id = $2, live = $3
           WHERE id = $1 AND status = 'pendiente'
           RETURNING listing_id, days)
        UPDATE listings l
-          SET featured_until = GREATEST(COALESCE(l.featured_until, now()), now()) + make_interval(days => p.days)
-         FROM p WHERE l.id = p.listing_id`,
+          SET featured_until = GREATEST(COALESCE(l.featured_until, now()), now()) + make_interval(days => p.days),
+              status = CASE WHEN l.status = 'pendiente' THEN 'publicada' ELSE l.status END,
+              published_at = CASE WHEN l.status = 'pendiente' THEN COALESCE(l.published_at, now()) ELSE l.published_at END,
+              updated_at = now()
+         FROM p WHERE l.id = p.listing_id
+       RETURNING l.id`,
       [order.id, approved.idTransaccion, approved.esReal],
     );
+    if (activated.length) refreshPublicPages();
   } else if (approved) {
     console.error("Pago Wompi no válido para la orden", order.id, { monto: approved.monto, esReal: approved.esReal });
   } else if (Date.now() - new Date(order.created_at).getTime() > LINK_HOURS * 3600_000) {

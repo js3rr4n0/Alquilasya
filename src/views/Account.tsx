@@ -208,14 +208,14 @@ export function Account() {
                       <ButtonLink to={`/publicar?editar=${encodeURIComponent(l.id)}`} variant="outline" size="sm">
                         Editar
                       </ButtonLink>
-                      {l.status === "publicada" && (
+                      {(l.status === "publicada" || l.status === "pendiente") && (
                         <Button
                           variant={featuring === l.id ? "ink" : "primary"}
                           size="sm"
                           aria-expanded={featuring === l.id}
                           onClick={() => setFeaturing(featuring === l.id ? null : l.id)}
                         >
-                          {featured(l) ? "Extender destacado" : "Destacar"}
+                          {featured(l) ? "Extender destacado" : l.status === "pendiente" ? "Destacar y publicar ya" : "Destacar"}
                         </Button>
                       )}
                       {l.status === "publicada" && (
@@ -233,12 +233,13 @@ export function Account() {
                       </Button>
                     </div>
                   </div>
-                  {featuring === l.id && l.status === "publicada" && (
+                  {featuring === l.id && (l.status === "publicada" || l.status === "pendiente") && (
                     <div className="mt-4 rounded-ctl bg-crema-100 p-4 ring-1 ring-arena-200">
                       <p className="text-[15px] text-grafito-700">
                         Tu anuncio aparece <strong className="font-semibold text-negro">primero en las búsquedas</strong> de
                         su zona, con la etiqueta «Anuncio». Publicar sigue siendo gratis; esto es opcional.
                         {featured(l) && " Los días se suman a los que ya tienes."}
+                        {l.status === "pendiente" && " Al pagar, tu anuncio se publica de inmediato, sin esperar la revisión."}
                       </p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         {PLANS.map((p) => (
