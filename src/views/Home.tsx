@@ -11,6 +11,8 @@ import { SearchBar } from "../components/SearchBar";
 import { Badge, ButtonLink, Container, Eyebrow, Folio, SectionTitle } from "../components/ui";
 import { DURATIONS, priceSuffix, type DurationKey } from "../lib/durations";
 import { cx, m2, money } from "../lib/format";
+import { departments } from "../lib/geo";
+import { FAQ } from "../lib/site";
 import { photoSrcSet, photoUrl } from "../lib/photos";
 import { useStore } from "../lib/store";
 
@@ -26,10 +28,10 @@ const EXAMPLES: Record<DurationKey, { id: string; why: string }> = {
 };
 
 export function Home() {
-  const { listings, duration, setDuration } = useStore();
-  const naranjos = listings.find((l) => l.id === "casa-los-naranjos") ?? listings[0];
-  const palmas =
-    listings.find((l) => l.id === "apartamento-las-palmas") ?? listings[1] ?? listings[0];
+  const { listings, examples, loaded, duration, setDuration } = useStore();
+  // Las piezas que explican el producto usan casas de ejemplo; los resultados, solo anuncios reales.
+  const naranjos = examples.find((l) => l.id === "casa-los-naranjos") ?? examples[0];
+  const palmas = examples.find((l) => l.id === "apartamento-las-palmas") ?? examples[1];
   const featured = listings.slice(0, 4);
 
   return (
@@ -122,22 +124,41 @@ export function Home() {
             <SectionTitle
               index="01"
               kicker="Alquileres"
-              title="Casas con todo escrito."
-              lead="Cambia la duración y mira el total para ese plazo. Los anuncios marcados «Ejemplo» son ilustrativos mientras llegan los primeros inmuebles reales."
+              title={featured.length ? "Recién publicados." : "Los primeros anuncios están por llegar."}
+              lead={
+                featured.length
+                  ? "Cambia la duración y mira el total para ese plazo."
+                  : "AlquilasYa está empezando en El Salvador. Publica tu inmueble gratis o déjanos tu correo y te avisamos cuando haya opciones en tu zona."
+              }
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <DurationPicker value={duration} onChange={setDuration} compact />
-              <ButtonLink to="/explorar" variant="outline" size="md">
-                Ver las {listings.length} <ArrowRight className="size-4" />
-              </ButtonLink>
-            </div>
+            {featured.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <DurationPicker value={duration} onChange={setDuration} compact />
+                <ButtonLink to="/explorar" variant="outline" size="md">
+                  Ver todos <ArrowRight className="size-4" />
+                </ButtonLink>
+              </div>
+            ) : (
+              loaded && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <ButtonLink to="/publicar" variant="primary" size="md">
+                    Publicar gratis <ArrowRight className="size-4" />
+                  </ButtonLink>
+                  <ButtonLink to="/lista" variant="outline" size="md">
+                    Avísenme
+                  </ButtonLink>
+                </div>
+              )
+            )}
           </div>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featured.map((l, i) => (
-              <ListingCard key={l.id} listing={l} duration={duration} priority={i < 2} />
-            ))}
-          </div>
+          {featured.length > 0 && (
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {featured.map((l, i) => (
+                <ListingCard key={l.id} listing={l} duration={duration} priority={i < 2} />
+              ))}
+            </div>
+          )}
         </Container>
       </section>
 
@@ -251,7 +272,7 @@ export function Home() {
           <div className="mt-12 grid overflow-hidden rounded-card bg-crema-050 ring-1 ring-arena-200 md:grid-cols-5">
             {DURATIONS.map((d, i) => {
               const ex = EXAMPLES[d.key];
-              const l = listings.find((x) => x.id === ex.id) ?? listings[0];
+              const l = examples.find((x) => x.id === ex.id) ?? examples[0];
               const p = l.prices[d.key] ?? Object.values(l.prices)[0] ?? 0;
               const active = duration === d.key;
               return (
@@ -297,8 +318,8 @@ export function Home() {
                       active ? "border-crema-100/15" : "border-arena-200",
                     )}
                   >
-                    <p className={cx("label-sm", active ? "text-piedra-300" : "text-grafito-600")}>
-                      {l.zone}
+                    <p className={cx("text-[14px]", active ? "text-piedra-300" : "text-grafito-600")}>
+                      Ejemplo · {l.zone}
                     </p>
                     <p className="mt-1 text-[22px] font-semibold tabular-nums tracking-[-0.025em]">
                       {money(p)}{" "}
@@ -461,12 +482,60 @@ export function Home() {
         </Container>
       </section>
 
+      {/* ——— ZONAS Y PREGUNTAS ——— */}
+      <section aria-labelledby="zonas-title" className="border-b border-piedra-250/80 py-20 lg:py-28">
+        <Container>
+          <div className="grid gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+            <div>
+              <Eyebrow index="07">Dónde buscar</Eyebrow>
+              <h2 id="zonas-title" className="head mt-3 text-balance text-[32px] sm:text-[40px]">
+                Alquileres en los 14 departamentos.
+              </h2>
+              <ul className="mt-7 flex flex-wrap gap-2">
+                {departments.map((d) => (
+                  <li key={d.id}>
+                    <Link
+                      to={`/alquiler/${d.slug}`}
+                      className="inline-flex h-10 items-center rounded-ctl bg-crema-050 px-3.5 text-[15px] text-grafito-700 ring-1 ring-piedra-250 hover:text-negro hover:ring-negro"
+                    >
+                      {d.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <Eyebrow index="08">Preguntas frecuentes</Eyebrow>
+              <div className="mt-5 divide-y divide-piedra-250/80 border-y border-piedra-250/80">
+                {FAQ.map((f) => (
+                  <details key={f.q} className="group py-1">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-[17px] font-semibold text-negro [&::-webkit-details-marker]:hidden">
+                      {f.q}
+                      <span
+                        aria-hidden
+                        className="text-[22px] font-normal leading-none text-terracota-700 transition-transform group-open:rotate-45"
+                      >
+                        +
+                      </span>
+                    </summary>
+                    <p className="max-w-[64ch] pb-5 text-[16px] leading-relaxed text-grafito-700">
+                      {f.a}
+                    </p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Container>
+      </section>
+
       {/* ——— 08 · PUBLICAR ——— */}
       <section aria-labelledby="publicar-title" className="py-20 lg:py-28">
         <Container>
           <div className="grid items-center gap-12 rounded-card bg-arena-200 p-6 ring-1 ring-piedra-250 sm:p-10 lg:grid-cols-[1.05fr_0.95fr] lg:p-14">
             <div>
-              <Eyebrow index="08">Para propietarios</Eyebrow>
+              <Eyebrow index="09">Para propietarios</Eyebrow>
               <h2
                 id="publicar-title"
                 className="serif mt-4 text-balance text-[38px] leading-[1.02] sm:text-[50px]"

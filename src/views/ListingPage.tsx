@@ -20,6 +20,7 @@ import {
   Modal,
 } from "../components/ui";
 import { PEOPLE } from "../data/people";
+import type { Listing } from "../data/types";
 import {
   DURATION,
   DURATIONS,
@@ -33,9 +34,9 @@ import { cx, dateShort, dec, fromIsoDay, isoDay, m2, money, plural } from "../li
 import { photoSrcSet, photoUrl } from "../lib/photos";
 import { useListing, useStore } from "../lib/store";
 
-export function ListingPage() {
+export function ListingPage({ initial }: { initial?: Listing }) {
   const { id } = useParams();
-  const { listing, loading } = useListing(id);
+  const { listing, loading } = useListing(id, initial);
   const { listings, duration, setDuration, start, setStart } = useStore();
   const [contactOpen, setContactOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState<string | null>(null);
@@ -138,7 +139,7 @@ export function ListingPage() {
               {listing.status === "pendiente" ? "Tu anuncio está en revisión." : "Este anuncio no está publicado."}
             </strong>{" "}
             {listing.status === "pendiente" &&
-              "Solo tú puedes verlo con este enlace desde este navegador. Lo revisamos y te avisamos por WhatsApp cuando esté publicado."}
+              "Solo tú puedes verlo con tu cuenta. Lo revisamos y te avisamos por WhatsApp cuando esté publicado."}
           </Container>
         </div>
       )}
@@ -227,6 +228,7 @@ export function ListingPage() {
                 {listing.bathrooms === 1 ? "baño" : "baños"} · {m2(listing.area)}
                 {listing.lot && ` (${m2(listing.lot)} de terreno)`} ·{" "}
                 <span className="font-medium text-negro">
+                  {listing.colonia ? `${listing.colonia}, ` : ""}
                   {listing.zone}, {listing.region}
                 </span>
               </p>
@@ -564,6 +566,7 @@ export function ListingPage() {
         </div>
 
         {/* More homes */}
+        {moreListings.length > 0 && (
         <section aria-labelledby="otras-h" className="mt-24 border-t border-piedra-250/80 pt-16">
           <div className="flex items-end justify-between gap-4">
             <div>
@@ -582,6 +585,7 @@ export function ListingPage() {
             ))}
           </div>
         </section>
+        )}
       </Container>
 
       {/* Barra de acción fija en teléfono */}

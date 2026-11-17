@@ -6,6 +6,7 @@ import type { Listing } from "../data/types";
 import { DURATION, type DurationKey } from "../lib/durations";
 import { dateShort, fromIsoDay } from "../lib/format";
 import { Link } from "../lib/router";
+import { useStore } from "../lib/store";
 import { Button, buttonClass, Modal } from "./ui";
 import { fieldClass } from "./WaitlistForm";
 
@@ -33,6 +34,7 @@ export function ContactDialog({
   duration: DurationKey;
   start: string;
 }) {
+  const { user } = useStore();
   const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -47,14 +49,17 @@ export function ContactDialog({
     setMensaje(
       `Hola. Me interesa ${listing.title} por ${DURATION[duration].label}, desde el ${dateShort(fromIsoDay(start))}. ¿Sigue disponible?`,
     );
+    let saved: Record<string, string> = {};
     try {
-      const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<string, string>;
-      if (saved.nombre) setNombre(saved.nombre);
-      if (saved.whatsapp) setWhatsapp(saved.whatsapp);
+      saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<string, string>;
     } catch {
       /* sin datos guardados */
     }
-  }, [open, listing.title, duration, start]);
+    const name = saved.nombre || user?.name;
+    const phone = saved.whatsapp || user?.whatsapp;
+    if (name) setNombre(name);
+    if (phone) setWhatsapp(phone);
+  }, [open, listing.title, duration, start, user]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

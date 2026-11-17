@@ -1,0 +1,45 @@
+import { departments } from "@/lib/geo";
+import { abs, FAQ, SITE_DESCRIPTION } from "@/lib/site";
+
+export const dynamic = "force-static";
+
+/** Resumen del sitio para asistentes de IA (convención llms.txt). */
+export function GET() {
+  const body = `# AlquilasYa
+
+> ${SITE_DESCRIPTION}
+
+AlquilasYa es un portal de alquiler de viviendas en El Salvador (casas, apartamentos, lofts, cabañas y estudios). Su diferencia es que cada anuncio debe decir, antes del contacto: el precio total por plazo, el depósito, lo que incluye y lo que no, el plano con las medidas de cada espacio y once condiciones del alquiler (muebles, mascotas, invitados, fumar, uso comercial, eventos, niños, horas de silencio, estacionamiento, accesibilidad y subarriendo).
+
+## Datos clave
+
+- País: El Salvador. Cobertura: 14 departamentos, 44 municipios y 262 distritos.
+- Precio: buscar y publicar es gratis. No hay comisión para quien busca ni para quien alquila.
+- Pagos: AlquilasYa no recibe ni guarda dinero. El pago y el contrato se acuerdan directamente con el propietario.
+- Plazos de alquiler: por día, semana, mes, seis meses o un año, según lo que ofrezca cada propietario.
+- Contacto con el propietario: desde la ficha, por mensaje y WhatsApp. No hace falta registrarse para buscar.
+- Moderación: cada anuncio se revisa antes de publicarse.
+- Moneda: dólares estadounidenses (USD).
+
+## Páginas principales
+
+- [Inicio](${abs("/")}): qué es y cómo funciona.
+- [Explorar alquileres](${abs("/explorar")}): resultados con filtros por zona, plazo, precio y condiciones, y mapa.
+- [Publicar una propiedad](${abs("/publicar")}): formulario guiado y gratuito para propietarios.
+- [Lista de espera](${abs("/lista")}): aviso cuando haya anuncios en una zona.
+- [Privacidad y términos](${abs("/privacidad")})
+
+## Alquileres por departamento
+
+${departments.map((d) => `- [Alquileres en ${d.name}](${abs(`/alquiler/${d.slug}`)})`).join("\n")}
+
+## Preguntas frecuentes
+
+${FAQ.map((f) => `### ${f.q}\n\n${f.a}`).join("\n\n")}
+
+## Contacto
+
+hola@alquilasya.com
+`;
+  return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+}

@@ -3,7 +3,7 @@
 import { ArrowRight, CalendarDays, ChevronDown, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@/lib/router";
-import { ZONES } from "../data/listings";
+import { departments, districtsOf } from "../lib/geo";
 import { endDate } from "../lib/durations";
 import { cx, dateShort, fromIsoDay, isoDay } from "../lib/format";
 import { useStore } from "../lib/store";
@@ -119,10 +119,15 @@ export function ZoneField({
           className="w-full cursor-pointer appearance-none truncate bg-transparent pr-6 text-[15px] font-medium outline-none [&>option]:text-negro"
         >
           <option value="">Todo El Salvador</option>
-          {ZONES.map((z) => (
-            <option key={z} value={z}>
-              {z}
-            </option>
+          {departments.map((d) => (
+            <optgroup key={d.id} label={d.name}>
+              <option value={`dep:${d.id}`}>Todo {d.name}</option>
+              {districtsOf(d.id).map((x) => (
+                <option key={x.id} value={`dis:${x.id}`}>
+                  {x.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </span>

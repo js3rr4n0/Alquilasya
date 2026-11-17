@@ -19,7 +19,7 @@ import { money } from "../lib/format";
 import { useStore } from "../lib/store";
 
 export function Expediente() {
-  const { privacy, setPrivacy, conversations, listings } = useStore();
+  const { privacy, setPrivacy, conversations, examples: listings } = useStore();
   const [params, setParams] = useSearchParams();
   const view = params.get("vista") === "propietario" ? "propietario" : "mia";
   const [copied, setCopied] = useState(false);

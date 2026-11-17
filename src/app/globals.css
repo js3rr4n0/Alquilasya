@@ -346,3 +346,25 @@
   letter-spacing: 0.08em;
   opacity: 0.7;
 }
+
+/* Pin para marcar la ubicación al publicar. */
+.place-pin {
+  display: block;
+  width: 28px;
+  height: 36px;
+  background: var(--color-terracota-600);
+  clip-path: path("M14 36C14 36 28 22.5 28 13.5C28 6 21.7 0 14 0C6.3 0 0 6 0 13.5C0 22.5 14 36 14 36Z");
+  position: relative;
+  cursor: grab;
+}
+
+.place-pin::after {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-crema-100);
+}

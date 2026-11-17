@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "@/lib/router";
 import { Logotipo } from "../brand/Logo";
 import { cx } from "../lib/format";
+import { useStore } from "../lib/store";
 import { ButtonLink } from "./ui";
 
 const NAV = [
@@ -16,6 +17,10 @@ const NAV = [
 export function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { user } = useStore();
+  const account = user
+    ? { to: "/cuenta", label: user.name.split(" ")[0] }
+    : { to: "/entrar", label: "Entrar" };
 
   useEffect(() => setOpen(false), [location.pathname]);
   useEffect(() => {
@@ -62,6 +67,9 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ButtonLink to={account.to} variant="ghostLight" size="sm">
+            {account.label}
+          </ButtonLink>
           <ButtonLink to="/publicar" variant="cream" size="sm">
             Publicar gratis
           </ButtonLink>
@@ -85,7 +93,7 @@ export function Header() {
           className="dots fixed inset-x-0 bottom-0 top-[68px] z-[999] animate-fade overflow-y-auto bg-negro md:hidden"
         >
           <nav aria-label="Principal" className="flex flex-col px-5 pt-6 sm:px-8">
-            {[{ to: "/", label: "Inicio" }, ...NAV].map((item, i) => (
+            {[{ to: "/", label: "Inicio" }, ...NAV, { to: account.to, label: user ? "Mi cuenta" : "Entrar" }].map((item, i) => (
               <NavLink
                 key={item.to}
                 to={item.to}

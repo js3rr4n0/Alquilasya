@@ -114,6 +114,10 @@ export type Listing = {
   example?: boolean;
   /** Moderation state for listings stored in the database. */
   status?: ListingStatus;
+  /** Territorial division for real listings (zone = district, region = department). */
+  districtId?: number;
+  municipality?: string;
+  colonia?: string;
   /** Public name of whoever published a real listing. */
   contactName?: string;
 };

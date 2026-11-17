@@ -60,8 +60,8 @@ const price = z.number().min(1).max(100000);
 export const listingInput = z.object({
   title: text(80).min(3, "Ponle un nombre a la propiedad"),
   type: z.enum(["Casa", "Apartamento", "Loft", "Cabaña", "Estudio", "Penthouse"]),
-  zone: text(60).min(2),
-  region: text(60).min(2),
+  districtId: z.number().int().positive(),
+  colonia: text(80).optional(),
   lat: z.number().min(12.9).max(14.6),
   lng: z.number().min(-90.3).max(-87.5),
   cover: photo,
@@ -149,22 +149,61 @@ export async function listPublished(): Promise<Listing[]> {
   return rows.map(toListing);
 }
 
-/** Una ficha por id. Las no publicadas solo se entregan con el token de quien la subió. */
-export async function getListing(id: string, token?: string | null): Promise<Listing | null> {
-  const rows = await query<ListingRow & { owner_token: string }>(
-    `SELECT id, status, data, contact_name, published_at, created_at, owner_token
+/** Publicados en un distrito o en todo un departamento (por nombre). */
+export async function listPublishedIn(place: { districtId?: number; department?: string }) {
+  const rows = await query<ListingRow>(
+    `SELECT id, status, data, contact_name, published_at, created_at
+       FROM listings
+      WHERE status = 'publicada'
+        AND ($1::int IS NULL OR district_id = $1)
+        AND ($2::text IS NULL OR region = $2)
+      ORDER BY published_at DESC NULLS LAST
+      LIMIT 60`,
+    [place.districtId ?? null, place.department ?? null],
+  );
+  return rows.map(toListing);
+}
+
+/** Lo mínimo de cada publicado, para el sitemap y para saber qué zonas tienen oferta. */
+export async function publishedIndex() {
+  return query<{ id: string; district_id: number | null; region: string; updated_at: string }>(
+    `SELECT id, district_id, region, updated_at FROM listings WHERE status = 'publicada'
+      ORDER BY updated_at DESC LIMIT 5000`,
+  );
+}
+
+/** Una ficha por id. Las no publicadas solo las ve quien las subió. */
+export async function getListing(id: string, userId?: string | null): Promise<Listing | null> {
+  const rows = await query<ListingRow & { user_id: string | null }>(
+    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id
        FROM listings WHERE id = $1`,
     [id],
   );
   const row = rows[0];
   if (!row) return null;
-  const mine = Boolean(token) && token === row.owner_token;
+  const mine = Boolean(userId) && userId === row.user_id;
   if (row.status !== "publicada" && !mine) return null;
   return { ...toListing(row), isNew: mine || undefined };
 }
 
-export async function createListing(input: ListingInput) {
-  const { contact, plan, ...fields } = input;
+type Place = { district: string; municipality: string; department: string };
+
+export async function createListing(
+  input: ListingInput,
+  owner: { id: string; email: string },
+) {
+  const { contact, plan, districtId, ...fields } = input;
+  const places = await query<Place>(
+    `SELECT d.name AS district, m.name AS municipality, p.name AS department
+       FROM districts d
+       JOIN municipalities m ON m.id = d.municipality_id
+       JOIN departments p ON p.id = m.department_id
+      WHERE d.id = $1`,
+    [districtId],
+  );
+  const place = places[0];
+  if (!place) throw new InputError("Elige el distrito donde está la propiedad.");
+
   const rooms = fields.floors.flatMap((f) => f.rooms);
   const outdoor = new Set(["terraza", "balcon", "jardin", "patio", "piscina", "cochera", "muelle"]);
   const bedrooms = rooms.filter((r) => r.type === "dormitorio").length;
@@ -176,6 +215,11 @@ export async function createListing(input: ListingInput) {
   // Todo lo que suena a respaldo de AlquilasYa lo decide el servidor, nunca el formulario.
   const data: Omit<Listing, "id"> = {
     ...fields,
+    zone: place.district,
+    region: place.department,
+    municipality: place.municipality,
+    districtId,
+    colonia: fields.colonia || undefined,
     conditions: fields.conditions as Listing["conditions"],
     bedrooms,
     bathrooms,
@@ -190,24 +234,23 @@ export async function createListing(input: ListingInput) {
     publishedAt: day(new Date()),
   };
 
-  const ownerToken = randomBytes(24).toString("base64url");
-  const base = slugify(fields.title);
+  const base = slugify(`${fields.title} ${place.district}`);
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = attempt === 0 ? base : `${base}-${randomBytes(2).toString("hex")}`;
     const rows = await query<{ id: string }>(
       `INSERT INTO listings
          (id, title, type, zone, region, bedrooms, bathrooms, area, price_month, deposit,
-          data, contact_name, contact_whatsapp, contact_email, plan, owner_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)
+          data, contact_name, contact_whatsapp, contact_email, plan, user_id, district_id, lat, lng)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17,$18,$19)
        ON CONFLICT (id) DO NOTHING
        RETURNING id`,
       [
         id,
         fields.title,
         fields.type,
-        fields.zone,
-        fields.region,
+        place.district,
+        place.department,
         bedrooms,
         bathrooms,
         area,
@@ -216,14 +259,61 @@ export async function createListing(input: ListingInput) {
         JSON.stringify({ ...data, id }),
         contact.name,
         contact.whatsapp,
-        contact.email || null,
+        contact.email || owner.email,
         plan,
-        ownerToken,
+        owner.id,
+        districtId,
+        fields.lat,
+        fields.lng,
       ],
     );
-    if (rows[0]) return { id: rows[0].id, ownerToken };
+    if (rows[0]) return { id: rows[0].id };
   }
   throw new Error("No se pudo generar un identificador para el anuncio.");
+}
+
+/** Error que se puede mostrar tal cual a quien envía el formulario. */
+export class InputError extends Error {}
+
+/* ——— Panel de quien publica ——— */
+
+export async function accountOverview(userId: string) {
+  const [listings, inquiries] = await Promise.all([
+    query(
+      `SELECT id, status, title, type, zone, region, price_month, created_at, published_at
+         FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId],
+    ),
+    query(
+      `SELECT q.id, q.listing_id, q.listing_title, q.nombre, q.whatsapp, q.mensaje, q.plazo,
+              q.desde, q.created_at
+         FROM inquiries q JOIN listings l ON l.id = q.listing_id
+        WHERE l.user_id = $1
+        ORDER BY q.created_at DESC LIMIT 200`,
+      [userId],
+    ),
+  ]);
+  return { listings, inquiries };
+}
+
+/** Quien publica puede pausar, reactivar (vuelve a revisión) o borrar su anuncio. */
+export async function ownerAction(userId: string, id: string, action: "pausar" | "reactivar" | "borrar") {
+  if (action === "borrar") {
+    const rows = await query<{ id: string }>(
+      "DELETE FROM listings WHERE id = $1 AND user_id = $2 RETURNING id",
+      [id, userId],
+    );
+    return Boolean(rows[0]);
+  }
+  const rows = await query<{ id: string }>(
+    action === "pausar"
+      ? `UPDATE listings SET status = 'pausada', updated_at = now()
+          WHERE id = $1 AND user_id = $2 AND status = 'publicada' RETURNING id`
+      : `UPDATE listings SET status = 'pendiente', updated_at = now()
+          WHERE id = $1 AND user_id = $2 AND status = 'pausada' RETURNING id`,
+    [id, userId],
+  );
+  return Boolean(rows[0]);
 }
 
 /* ——— Mensajes a quien publica ——— */

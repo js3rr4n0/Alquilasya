@@ -20,8 +20,11 @@ export function ExploreMap({
   activeId,
   onActivate,
   onOpen,
+  focus,
   className,
 }: {
+  /** Where to look when there are no results to frame. */
+  focus?: { lat: number; lng: number; zoom: number };
   listings: Listing[];
   duration: DurationKey;
   activeId: string | null;
@@ -42,7 +45,7 @@ export function ExploreMap({
       zoomControl: true,
       scrollWheelZoom: false,
       attributionControl: true,
-      center: [13.72, -89.35],
+      center: [13.75, -88.9],
       zoom: 9,
     });
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -89,9 +92,12 @@ export function ExploreMap({
     }
     if (listings.length) {
       const bounds = L.latLngBounds(listings.map((l) => [l.lat, l.lng] as [number, number]));
-      m.fitBounds(bounds.pad(0.25), { maxZoom: 13, animate: false });
+      m.fitBounds(bounds.pad(0.25), { maxZoom: 14, animate: false });
+    } else if (focus) {
+      m.setView([focus.lat, focus.lng], focus.zoom, { animate: false });
     }
-  }, [listings, duration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listings, duration, focus?.lat, focus?.lng, focus?.zoom]);
 
   useEffect(() => {
     markers.current.forEach((marker, id) => {
