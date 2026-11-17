@@ -56,21 +56,16 @@ function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
 }
 
 /**
- * Número en metros que se puede escribir con libertad (borrar, poner «35», usar coma).
- * Solo al terminar (salir del campo o Enter) se ajusta a los límites y se aplica;
- * corregirlo en cada tecla hacía imposible escribir en el teléfono.
+ * Número en metros que se escribe con libertad (borrar, «35», «4,75»). Se aplica al
+ * terminar (salir del campo o Enter) tal como se escribió: sin mínimo ni máximo.
  */
 function MetresField({
   value,
-  min,
-  max,
   onCommit,
   className,
   ariaLabel,
 }: {
   value: number;
-  min: number;
-  max: number;
   onCommit: (v: number) => void;
   className?: string;
   ariaLabel?: string;
@@ -88,8 +83,8 @@ function MetresField({
       setText(String(value).replace(".", ","));
       return;
     }
-    // Medio metro de precisión, dentro de los límites.
-    const v = Math.min(max, Math.max(min, Math.round(n * 2) / 2));
+    // Tal cual, con dos decimales como mucho.
+    const v = Math.round(n * 100) / 100;
     onCommit(v);
     setText(String(v).replace(".", ","));
   }
@@ -182,6 +177,36 @@ export function PlanEditor({
 
   function updateRoom(id: string, patch: Partial<Room>) {
     updateFloor({ rooms: floor.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+  }
+
+  /** Medida de la planta tal como se escribió; los cuartos que se salen se acomodan adentro. */
+  function setFloorSize(patch: { width?: number; height?: number }) {
+    const width = patch.width ?? floor.width;
+    const height = patch.height ?? floor.height;
+    let moved = false;
+    const rooms = floor.rooms.map((r) => {
+      const w = Math.min(r.w, width);
+      const h = Math.min(r.h, height);
+      const x = Math.min(r.x, Math.max(0, width - w));
+      const y = Math.min(r.y, Math.max(0, height - h));
+      if (w !== r.w || h !== r.h || x !== r.x || y !== r.y) moved = true;
+      return { ...r, w, h, x, y };
+    });
+    updateFloor({ width, height, rooms });
+    if (moved) toast("Acomodamos dentro de la planta los espacios que quedaban afuera.");
+  }
+
+  /** Medida de un cuarto tal como se escribió; si no cabe, la planta crece para contenerlo. */
+  function setRoomSize(id: string, patch: { w?: number; h?: number }) {
+    const r = floor.rooms.find((x) => x.id === id);
+    if (!r) return;
+    const next = { ...r, ...patch };
+    const width = Math.max(floor.width, next.x + next.w);
+    const height = Math.max(floor.height, next.y + next.h);
+    updateFloor({ width, height, rooms: floor.rooms.map((x) => (x.id === id ? next : x)) });
+    if (width !== floor.width || height !== floor.height) {
+      toast(`La planta creció a ${String(width).replace(".", ",")} × ${String(height).replace(".", ",")} m para que quepa.`);
+    }
   }
 
   function addRoom(type: RoomType, at?: { x: number; y: number }) {
@@ -410,9 +435,7 @@ export function PlanEditor({
             <span>Ancho:</span>
             <MetresField
               value={floor.width}
-              min={6}
-              max={28}
-              onCommit={(v) => updateFloor({ width: v })}
+              onCommit={(v) => setFloorSize({ width: v })}
               className="h-8 w-14 rounded-ctl bg-crema-100 px-2 text-center font-semibold tabular-nums text-negro ring-1 ring-piedra-250"
             />
             <span>m</span>
@@ -421,9 +444,7 @@ export function PlanEditor({
             <span>Fondo:</span>
             <MetresField
               value={floor.height}
-              min={6}
-              max={24}
-              onCommit={(v) => updateFloor({ height: v })}
+              onCommit={(v) => setFloorSize({ height: v })}
               className="h-8 w-14 rounded-ctl bg-crema-100 px-2 text-center font-semibold tabular-nums text-negro ring-1 ring-piedra-250"
             />
             <span>m</span>
@@ -690,9 +711,7 @@ export function PlanEditor({
                   <span className="label-sm text-grafito-600">Ancho (m)</span>
                   <MetresField
                     value={selected.w}
-                    min={1}
-                    max={floor.width - selected.x}
-                    onCommit={(v) => updateRoom(selected.id, { w: v })}
+                    onCommit={(v) => setRoomSize(selected.id, { w: v })}
                     className="mt-1 h-10 w-full rounded-ctl bg-crema-100 px-2.5 text-[14px] font-semibold tabular-nums ring-1 ring-piedra-250"
                   />
                 </label>
@@ -700,9 +719,7 @@ export function PlanEditor({
                   <span className="label-sm text-grafito-600">Largo (m)</span>
                   <MetresField
                     value={selected.h}
-                    min={1}
-                    max={floor.height - selected.y}
-                    onCommit={(v) => updateRoom(selected.id, { h: v })}
+                    onCommit={(v) => setRoomSize(selected.id, { h: v })}
                     className="mt-1 h-10 w-full rounded-ctl bg-crema-100 px-2.5 text-[14px] font-semibold tabular-nums ring-1 ring-piedra-250"
                   />
                 </label>

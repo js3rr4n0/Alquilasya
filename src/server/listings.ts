@@ -42,10 +42,10 @@ const room = z.object({
   id: text(40).min(1),
   type: z.enum(ROOM_TYPES),
   name: text(60).min(1),
-  x: z.number().min(0).max(200),
-  y: z.number().min(0).max(200),
-  w: z.number().min(0.5).max(200),
-  h: z.number().min(0.5).max(200),
+  x: z.number().min(0).max(1000),
+  y: z.number().min(0).max(1000),
+  w: z.number().positive().max(1000),
+  h: z.number().positive().max(1000),
   photos: z.array(photo).max(12),
   features: z.array(text(60)).max(20).optional(),
   view: z.object({ label: text(120), photo: photo.optional() }).optional(),
@@ -55,8 +55,8 @@ const room = z.object({
 const floor = z.object({
   id: text(40).min(1),
   name: text(60).min(1),
-  width: z.number().min(2).max(200),
-  height: z.number().min(2).max(200),
+  width: z.number().positive().max(1000),
+  height: z.number().positive().max(1000),
   rooms: z.array(room).min(1).max(40),
 });
 
