@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -250,6 +250,8 @@ export const SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS payments_user_idx ON payments (user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS payments_created_idx ON payments (created_at DESC)`,
+  // v10: publicación automática; si el filtro marca algo, aquí queda el motivo.
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS review_reason TEXT`,
 
   `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,

@@ -20,6 +20,7 @@ type ListingRow = {
   price_month: string | null;
   created_at: string;
   featured_until: string | null;
+  review_reason: string | null;
 };
 type PaymentRow = { id: string; listing_title: string; plan: PlanId; amount: string; paid_at: string | null };
 
@@ -29,8 +30,9 @@ const featured = (l: ListingRow) => Boolean(l.featured_until && new Date(l.featu
 
 const STATUS: Record<Status, { label: string; tone: "aviso" | "exito" | "error" | "neutral"; hint: string }> = {
   pendiente: { label: "En revisión", tone: "aviso", hint: "Lo revisamos antes de mostrarlo al público." },
+  // El motivo concreto (review_reason) se muestra debajo cuando el filtro marcó algo.
   publicada: { label: "Publicado", tone: "exito", hint: "Visible para quien busca." },
-  pausada: { label: "Pausado", tone: "neutral", hint: "Oculto. Puedes reactivarlo cuando quieras." },
+  pausada: { label: "Pausado", tone: "neutral", hint: "Oculto. Al reactivarlo vuelve a salir al instante." },
   rechazada: { label: "No publicado", tone: "error", hint: "Escríbenos para saber qué corregir." },
 };
 
@@ -202,20 +204,27 @@ export function Account() {
                         {l.type} · {l.zone}, {l.region}
                         {l.price_month ? ` · $${Number(l.price_month)} / mes` : ""}
                       </p>
-                      <p className="mt-0.5 text-[14px] text-grafito-600">{STATUS[l.status].hint}</p>
+                      {l.status === "pendiente" && l.review_reason ? (
+                        <p className="mt-0.5 text-[14px] text-aviso">
+                          <strong className="font-semibold">Qué corregir:</strong> {l.review_reason}. Usa «Editar» y se
+                          publica solo al guardar.
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-[14px] text-grafito-600">{STATUS[l.status].hint}</p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <ButtonLink to={`/publicar?editar=${encodeURIComponent(l.id)}`} variant="outline" size="sm">
                         Editar
                       </ButtonLink>
-                      {l.status === "publicada" && (
+                      {(l.status === "publicada" || (l.status === "pendiente" && !l.review_reason)) && (
                         <Button
                           variant={featuring === l.id ? "ink" : "primary"}
                           size="sm"
                           aria-expanded={featuring === l.id}
                           onClick={() => setFeaturing(featuring === l.id ? null : l.id)}
                         >
-                          {featured(l) ? "Extender destacado" : "Destacar"}
+                          {featured(l) ? "Extender destacado" : l.status === "pendiente" ? "Destacar y publicar ya" : "Destacar"}
                         </Button>
                       )}
                       {l.status === "publicada" && (
@@ -233,12 +242,13 @@ export function Account() {
                       </Button>
                     </div>
                   </div>
-                  {featuring === l.id && l.status === "publicada" && (
+                  {featuring === l.id && (l.status === "publicada" || (l.status === "pendiente" && !l.review_reason)) && (
                     <div className="mt-4 rounded-ctl bg-crema-100 p-4 ring-1 ring-arena-200">
                       <p className="text-[15px] text-grafito-700">
                         Tu anuncio aparece <strong className="font-semibold text-negro">primero en las búsquedas</strong> de
                         su zona, con la etiqueta «Anuncio». Publicar sigue siendo gratis; esto es opcional.
                         {featured(l) && " Los días se suman a los que ya tienes."}
+                        {l.status === "pendiente" && " Al pagar, tu anuncio se publica de inmediato, sin esperar la revisión."}
                       </p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         {PLANS.map((p) => (

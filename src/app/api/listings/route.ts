@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   try {
     const created = await createListing(parsed.data, user);
     refreshPublicPages();
-    return NextResponse.json({ ...created, status: "pendiente" }, { status: 201 });
+    return NextResponse.json(created, { status: 201 });
   } catch (error) {
     if (error instanceof InputError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

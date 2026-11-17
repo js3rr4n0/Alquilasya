@@ -47,6 +47,17 @@ export const DURATION: Record<DurationKey, Duration> = Object.fromEntries(
   DURATIONS.map((d) => [d.key, d]),
 ) as Record<DurationKey, Duration>;
 
+/**
+ * Topes de precio del buscador, según la unidad en que se cobra cada plazo
+ * (por día, por semana o por mes; 6 meses y 1 año se comparan por mes).
+ * El 0 es «Sin tope» y va al final.
+ */
+export const PRICE_CAPS: Record<Duration["unit"], number[]> = {
+  día: [25, 30, 50, 100, 0],
+  semana: [100, 200, 350, 500, 0],
+  mes: [100, 200, 500, 1000, 1500, 2500, 0],
+};
+
 export function endDate(start: Date, key: DurationKey) {
   switch (key) {
     case "dia":

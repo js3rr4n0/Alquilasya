@@ -10,7 +10,7 @@ import { DateField, ZoneField } from "../components/SearchBar";
 import { Button, buttonClass, Container, Folio } from "../components/ui";
 import { CONDITION_FILTERS } from "../data/conditions";
 import type { ConditionKey, ListingSummary, MapPoint, PropertyType } from "../data/types";
-import { DURATION, DURATIONS, type DurationKey } from "../lib/durations";
+import { DURATION, DURATIONS, PRICE_CAPS, type DurationKey } from "../lib/durations";
 import { cx, money, plural } from "../lib/format";
 import { COUNTRY, parseZone, zoneLabel } from "../lib/geo";
 import { useStore } from "../lib/store";
@@ -40,6 +40,10 @@ export function Explore() {
   const [type, setType] = useState<PropertyType | "">("");
   const [beds, setBeds] = useState(0);
   const [maxPrice, setMaxPrice] = useState(0);
+  // Cada plazo tiene sus propios topes: al cambiar de plazo, un tope que ya no aplica se quita.
+  useEffect(() => {
+    setMaxPrice((m) => (PRICE_CAPS[DURATION[duration].unit].includes(m) ? m : 0));
+  }, [duration]);
   const [onlySaved, setOnlySaved] = useState(false);
   const [onlyForDuration, setOnlyForDuration] = useState(true);
   const [sort, setSort] = useState<Sort>("recientes");
@@ -267,7 +271,7 @@ export function Explore() {
               <div>
                 <p className="text-[14px] text-piedra-300">Tope por {DURATION[duration].unit}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {[0, 500, 1000, 1500, 2500].map((p) => (
+                  {PRICE_CAPS[DURATION[duration].unit].map((p) => (
                     <button
                       key={p}
                       type="button"

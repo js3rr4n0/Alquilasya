@@ -153,7 +153,7 @@ export function ListingPage({ initial }: { initial?: Listing }) {
               {listing.status === "pendiente" ? "Tu anuncio está en revisión." : "Este anuncio no está publicado."}
             </strong>{" "}
             {listing.status === "pendiente" &&
-              "Solo tú puedes verlo con tu cuenta. Lo revisamos y te avisamos por WhatsApp cuando esté publicado."}
+              "Solo tú puedes verlo con tu cuenta. Nuestro filtro automático encontró algo que revisar; en tu cuenta ves el motivo. Corrígelo con «Editar» y se publica solo, o espera a que lo revisemos."}
           </Container>
         </div>
       )}

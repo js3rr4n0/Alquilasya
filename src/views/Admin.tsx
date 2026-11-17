@@ -21,6 +21,8 @@ type ListingRow = {
   contact_whatsapp: string;
   owner_email: string | null;
   edited_at: string | null;
+  featured_until: string | null;
+  review_reason: string | null;
   created_at: string;
 };
 type UserRow = {
@@ -75,13 +77,13 @@ export function Admin() {
     if (user?.admin) load();
   }, [user, load]);
 
-  async function setStatus(id: string, status: Status) {
+  async function setStatus(id: string, status: Status | { destacar: 0 | 7 | 30 }) {
     setBusy(true);
     setError("");
     const res = await fetch("/api/admin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify(typeof status === "string" ? { id, status } : { id, ...status }),
     });
     if (!res.ok) setError("No se pudo actualizar el anuncio.");
     await load();
@@ -134,7 +136,7 @@ export function Admin() {
         <>
           <dl className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              ["Por revisar", t.listings_pending, `${t.listings_published} publicados de ${t.listings}`],
+              ["Marcados por el filtro", t.listings_pending, `${t.listings_published} publicados de ${t.listings}`],
               ["Usuarios", t.users, `${t.users_verified} verificados · +${t.users_week} esta semana`],
               ["Mensajes de chat", t.messages, `${t.conversations} conversaciones · +${t.messages_week} esta semana`],
               ["Anuncios nuevos", t.listings_week, "en los últimos 7 días"],
@@ -181,12 +183,18 @@ export function Admin() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={TONE[l.status]}>{l.status}</Badge>
                     {l.edited_at && <Badge tone="info">Editado {when(l.edited_at)}</Badge>}
+                    {l.featured_until && new Date(l.featured_until) > new Date() && (
+                      <Badge tone="neutral">Destacado hasta {when(l.featured_until)}</Badge>
+                    )}
                     <span className="text-[16px] font-semibold">{l.title}</span>
                   </div>
                   <p className="mt-1 text-[14px] text-grafito-600">
                     {l.type} · {l.zone}, {l.region}
                     {l.price_month ? ` · $${Number(l.price_month)} / mes` : ""} · {when(l.created_at)}
                   </p>
+                  {l.review_reason && (
+                    <p className="mt-1 text-[14px] font-medium text-aviso">Filtro automático: {l.review_reason}</p>
+                  )}
                   <p className="mt-1 text-[14px] text-grafito-700">
                     {l.contact_name} · {l.contact_whatsapp}
                     {l.owner_email ? ` · ${l.owner_email}` : ""}
@@ -211,6 +219,17 @@ export function Admin() {
                     <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, "pausada")}>
                       Pausar
                     </Button>
+                  )}
+                  {l.featured_until && new Date(l.featured_until) > new Date() ? (
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, { destacar: 0 })}>
+                      Quitar destacado
+                    </Button>
+                  ) : (
+                    l.status !== "rechazada" && (
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => setStatus(l.id, { destacar: 7 })}>
+                        Destacar 7 días
+                      </Button>
+                    )
                   )}
                   {l.status !== "rechazada" && (
                     <Button variant="ghost" size="sm" disabled={busy} onClick={() => setStatus(l.id, "rechazada")}>

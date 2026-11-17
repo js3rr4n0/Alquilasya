@@ -484,7 +484,7 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
               </h2>
               <p className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-grafito-700">
                 Arrastras cada cuarto, pones sus metros, eliges fotos y respondes las once
-                condiciones. Publicar es gratis. Revisamos cada anuncio antes de mostrarlo.
+                condiciones. Publicar es gratis y tu anuncio sale al instante.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <ButtonLink to="/publicar" variant="primary" size="lg">
