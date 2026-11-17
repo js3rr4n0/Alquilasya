@@ -75,8 +75,8 @@ export function Footer() {
             <Link to="/privacidad" className="hover:text-crema-100">
               Privacidad y términos
             </Link>
-            <a href="mailto:hola@alquilasya.com" className="hover:text-crema-100">
-              hola@alquilasya.com
+            <a href="mailto:contacto@alquilasya.com" className="hover:text-crema-100">
+              contacto@alquilasya.com
             </a>
           </p>
         </div>

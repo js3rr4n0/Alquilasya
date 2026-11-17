@@ -43,7 +43,7 @@ ${FAQ.map((f) => `### ${f.q}\n\n${f.a}`).join("\n\n")}
 
 ## Contacto
 
-hola@alquilasya.com
+contacto@alquilasya.com
 `;
   return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }

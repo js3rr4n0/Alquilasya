@@ -32,12 +32,19 @@ import {
 import { cx, dateShort, dec, fromIsoDay, isoDay, m2, money, plural } from "../lib/format";
 import { photoSrcSet, photoUrl } from "../lib/photos";
 import { useListing, useStore } from "../lib/store";
+import { send } from "../lib/track";
 
 export function ListingPage({ initial }: { initial?: Listing }) {
   const { id } = useParams();
   const { listing, loading } = useListing(id, initial);
   const { duration, setDuration, start, setStart } = useStore();
   const [moreListings, setMoreListings] = useState<ListingSummary[]>([]);
+  const seen = listing?.id;
+  const seenZone = listing?.zone;
+  const seenRegion = listing?.region;
+  useEffect(() => {
+    if (seen) send("ficha_vista", { props: { anuncio: seen, zona: `${seenZone}, ${seenRegion}` } });
+  }, [seen, seenZone, seenRegion]);
   useEffect(() => {
     if (!id) return;
     fetch(`/api/listings?solo=0&limite=3&excluir=${encodeURIComponent(id)}`)
@@ -132,7 +139,10 @@ export function ListingPage({ initial }: { initial?: Listing }) {
     window.setTimeout(() => setCopied(false), 2000);
   }
 
-  const ask = () => setContactOpen(true);
+  const ask = () => {
+    send("contacto_abierto", { props: { anuncio: listing!.id } });
+    setContactOpen(true);
+  };
 
   return (
     <div className="pb-20 lg:pb-0">

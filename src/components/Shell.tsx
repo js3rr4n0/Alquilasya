@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { StoreProvider } from "@/lib/store";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
+import { PageTracker } from "./PageTracker";
 
 /** Marco común: cabecera, contenido y pie. El chat ocupa toda la altura, sin pie. */
 export function Shell({ children }: { children: ReactNode }) {
@@ -13,6 +14,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const hideFooter = pathname.startsWith("/mensajes") || bare;
   return (
     <StoreProvider>
+      <PageTracker />
       <div className="flex min-h-dvh flex-col">
         <Header />
         <main id="contenido" className="flex-1">

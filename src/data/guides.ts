@@ -253,7 +253,7 @@ export const GUIDES: Guide[] = [
       {
         heading: "Si ya pagaste y sospechas",
         paragraphs: [
-          "Guarda mensajes, comprobantes y el anuncio. Avisa a tu banco de inmediato y presenta la denuncia ante las autoridades. Si el anuncio estaba en AlquilasYa, escríbenos a hola@alquilasya.com para retirarlo.",
+          "Guarda mensajes, comprobantes y el anuncio. Avisa a tu banco de inmediato y presenta la denuncia ante las autoridades. Si el anuncio estaba en AlquilasYa, escríbenos a contacto@alquilasya.com para retirarlo.",
         ],
       },
     ],
