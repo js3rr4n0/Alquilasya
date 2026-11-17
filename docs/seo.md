@@ -18,6 +18,10 @@ sitio en condiciones de competir por él.
 | `llms.txt` | `/llms.txt` | Resumen del sitio en texto plano para ChatGPT, Claude, Perplexity y similares. |
 | 404 reales | Fichas y zonas inexistentes | Evita que Google indexe páginas de error. |
 | Imagen al compartir | `/opengraph-image` | Vista previa en WhatsApp, Facebook y X. |
+| Guías | `/guias` | Seis guías que responden una pregunta cada una, con la respuesta en el primer párrafo y datos `Article` y `FAQPage`. |
+| Aterrizaje de propietarios | `/anunciar` | «Publica tu alquiler gratis»: destino de la campaña de propietarios. |
+| Anuncios recientes en el HTML | Portada | Los últimos publicados llegan renderizados, sin depender de JavaScript. |
+| Conversiones | `src/lib/track.ts` | Cuenta creada, correo verificado, anuncio enviado, mensaje enviado y lista de espera, hacia Vercel Analytics y GA4. |
 
 ## 2. Lo que hay que hacer a mano (una vez)
 
@@ -122,20 +126,61 @@ sugerida para empezar con poco:
   contactar», «Sin comisión», «Publicar es gratis».
 - No conviene pagar por inquilinos hasta tener oferta en esa zona: primero la
   campaña de propietarios.
-- Medición: instala Google Analytics 4 o Vercel Analytics y marca como
-  conversión «mensaje enviado» y «anuncio enviado a revisión».
+
+### Medición (ya programada, falta conectarla)
+
+1. Crea una propiedad de **Google Analytics 4** y pon su id (`G-…`) en la
+   variable `NEXT_PUBLIC_GA_ID`. Opcional: el id de Google Ads (`AW-…`) en
+   `NEXT_PUBLIC_GOOGLE_ADS_ID`.
+2. En GA4 marca como **eventos clave**: `anuncio_enviado`, `mensaje_enviado`,
+   `cuenta_creada` y `lista_espera`.
+3. Vincula GA4 con Google Ads e **importa** esos eventos como conversiones.
+4. En los enlaces de cada anuncio usa `utm_source`, `utm_medium` y
+   `utm_campaign` para distinguir campañas en los informes.
+
+Sin `NEXT_PUBLIC_GA_ID` el sitio no carga nada de Google ni usa cookies de
+medición; las mismas conversiones se ven en Vercel Analytics.
+
+### Textos listos para copiar (anuncios de búsqueda adaptables)
+
+Títulos de hasta 30 caracteres y descripciones de hasta 90.
+
+**Propietarios → `/anunciar`**
+
+| Títulos | Descripciones |
+| --- | --- |
+| Publica tu alquiler gratis | Anuncia tu casa o apartamento sin pagar y sin comisión. Listo en minutos. |
+| Anuncia tu casa sin comisión | Di el precio, el depósito y tus reglas. Te escribe quien sí puede alquilar. |
+| Alquila tu apartamento | Formulario guiado con plano y fotos. Edita, pausa o borra cuando quieras. |
+| Publicar es gratis. Siempre. | Recibe mensajes por el chat del sitio. Tu WhatsApp no aparece en el anuncio. |
+| AlquilasYa El Salvador | |
+
+**Inquilinos → `/alquiler/<zona>`** (cambia la zona en cada grupo)
+
+| Títulos | Descripciones |
+| --- | --- |
+| Alquileres en Santa Tecla | Precio total, depósito y condiciones antes de escribir. Sin comisión. |
+| Casas en alquiler | Mira el plano y las medidas de cada cuarto antes de visitar. |
+| Apartamentos en alquiler | Filtra por mascotas, muebles y parqueo. Escribe directo al propietario. |
+| Todo claro antes de entrar | Por día, semana, mes o año. Cada anuncio dice cuánto pagas para entrar. |
+| Sin comisión ni intermediario | |
+
+No uses «el mejor» ni «#1»: Google los rechaza sin respaldo de un tercero.
 
 ## 6. Contenido para buscadores con IA (GEO)
 
 Los asistentes citan páginas que responden una pregunta concreta, con datos y
-con fecha. Guías que vale la pena escribir, una por página:
+con fecha.
 
-- Cuánto cuesta alquilar en San Salvador (rangos por zona, con la fecha y con
-  datos de los propios anuncios cuando haya suficientes).
-- Qué es el depósito de alquiler en El Salvador y cuándo se devuelve.
-- Qué debe decir un contrato de alquiler en El Salvador.
-- Alquilar con mascotas: qué preguntar antes de visitar.
-- Guía para extranjeros y salvadoreños en el exterior que alquilan a distancia.
+**Ya publicadas en `/guias`** (se editan en `src/data/guides.ts`): qué
+preguntar antes de alquilar, el depósito, alquilar con mascotas, alquilar desde
+el extranjero, cómo evitar estafas y cómo publicar un buen anuncio.
+
+**Pendientes, porque necesitan datos o revisión legal:**
+
+- Cuánto cuesta alquilar en San Salvador (rangos por zona, con fecha, a partir
+  de los propios anuncios cuando haya suficientes).
+- Qué debe decir un contrato de alquiler en El Salvador (con un abogado).
 - Las mejores zonas para vivir en San Salvador según presupuesto.
 
 Reglas: una pregunta por título, la respuesta en el primer párrafo, cifras con

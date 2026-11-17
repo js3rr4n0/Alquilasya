@@ -13,7 +13,7 @@ const SECTIONS = [
       "Lista de espera: nombre, correo, WhatsApp, departamento y si buscas o publicas.",
       "Al publicar: los datos del anuncio y tu nombre, WhatsApp y correo de contacto.",
       "Al escribirle a quien publica: tu nombre, tu WhatsApp y el mensaje. Si usas el chat, los mensajes que envías y recibes.",
-      "En tu navegador se guardan tus casas favoritas y una cookie de sesión para mantenerte dentro de tu cuenta. No usamos cookies de publicidad. Medimos visitas y velocidad con Vercel Analytics, que no usa cookies ni identifica a las personas.",
+      "En tu navegador se guardan tus casas favoritas y una cookie de sesión para mantenerte dentro de tu cuenta. No usamos cookies de publicidad. Medimos visitas y velocidad con Vercel Analytics, que no usa cookies ni identifica a las personas. Si activamos Google Analytics o Google Ads para medir campañas, esos servicios sí usan cookies.",
     ],
   },
   {

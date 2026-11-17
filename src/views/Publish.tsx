@@ -17,11 +17,13 @@ import type {
   ConditionStatus,
   Floor,
   Included,
+  Listing,
   PropertyType,
 } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, isoDay, m2, money } from "../lib/format";
 import { departments, districtsOf, getDistrict, getMunicipality } from "../lib/geo";
+import { track } from "../lib/track";
 import { uploadPhoto } from "../lib/upload";
 import { photoUrl } from "../lib/photos";
 import { useStore } from "../lib/store";
@@ -183,6 +185,11 @@ export function Publish() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const stepParam = params.get("paso") as StepKey | null;
+  /** Id del anuncio que se está editando, si se llegó con `?editar=`. */
+  const editing = params.get("editar");
+  const [editState, setEditState] = useState<"none" | "loading" | "ready" | "missing">(
+    editing ? "loading" : "none",
+  );
   const step: StepKey = STEPS.some((s) => s.key === stepParam) ? stepParam! : "datos";
   const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -224,8 +231,52 @@ export function Publish() {
     { label: "Parqueo", included: false },
   ]);
 
+  // Modo edición: se cargan la ficha y el contacto del anuncio propio.
+  useEffect(() => {
+    if (!editing || !user?.verified) return;
+    let alive = true;
+    fetch(`/api/listings/${encodeURIComponent(editing)}?editar=1`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (d: {
+          listing: Listing;
+          contact: { name: string; whatsapp: string; email: string };
+        } | null) => {
+          if (!alive) return;
+          if (!d) return setEditState("missing");
+          const l = d.listing;
+          const district = l.districtId ? getDistrict(l.districtId) : undefined;
+          setTitle(l.title);
+          setType(l.type);
+          if (district) {
+            setDepartment(district.departmentId);
+            setDistrictId(district.id);
+          }
+          setColonia(l.colonia ?? "");
+          setPoint({ lat: l.lat, lng: l.lng });
+          setCover(l.cover);
+          setSummary(l.summary);
+          setDescription(l.description);
+          setFloors(l.floors);
+          setConditions(l.conditions);
+          setRules(l.rules);
+          setPrices(l.prices);
+          setDeposit(l.deposit);
+          setIncludes(l.includes);
+          setContactName(d.contact.name);
+          setContactWhatsapp(d.contact.whatsapp);
+          setContactEmail(d.contact.email);
+          setEditState("ready");
+        },
+      )
+      .catch(() => alive && setEditState("missing"));
+    return () => {
+      alive = false;
+    };
+  }, [editing, user?.verified]);
+
   function go(next: StepKey) {
-    setParams({ paso: next });
+    setParams(editing ? { paso: next, editar: editing } : { paso: next });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -337,8 +388,10 @@ export function Publish() {
 
     setSending(true);
     try {
-      const res = await fetch("/api/listings", {
-        method: "POST",
+      const res = await fetch(
+        editing ? `/api/listings/${encodeURIComponent(editing)}` : "/api/listings",
+        {
+        method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -346,7 +399,10 @@ export function Publish() {
       if (!res.ok || !data.id) {
         throw new Error(data.error ?? "No pudimos guardar tu anuncio. Intenta de nuevo.");
       }
-      toast.success("Anuncio enviado. Lo revisamos antes de publicarlo.");
+      track(editing ? "anuncio_editado" : "anuncio_enviado", { tipo: type, zona: zoneName });
+      toast.success(
+        editing ? "Cambios guardados." : "Anuncio enviado. Lo revisamos antes de publicarlo.",
+      );
       navigate(`/casa/${data.id}`);
     } catch (error) {
       setProblems([error instanceof Error ? error.message : "No pudimos guardar tu anuncio."]);
@@ -384,6 +440,21 @@ export function Publish() {
     );
   }
 
+  if (editState === "loading") return <div className="min-h-[60vh]" aria-busy="true" />;
+  if (editState === "missing") {
+    return (
+      <Container className="py-24 text-center">
+        <h1 className="serif text-[40px] leading-none">No encontramos ese anuncio.</h1>
+        <p className="mt-4 text-[16px] text-grafito-700">
+          Solo puedes editar los anuncios de tu cuenta.
+        </p>
+        <Link to="/cuenta" className={buttonClass("ink", "md", "mt-8")}>
+          Ir a mis anuncios
+        </Link>
+      </Container>
+    );
+  }
+
   return (
     <div>
       {/* Header band */}
@@ -397,7 +468,16 @@ export function Publish() {
           <div className="mt-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <h1 className="serif text-[42px] leading-[0.98] sm:text-[54px]">
-                Arma el plano, responde las condiciones y <em className="text-terracota-300">listo.</em>
+                {editing ? (
+                  <>
+                    Edita tu <em className="text-terracota-300">anuncio.</em>
+                  </>
+                ) : (
+                  <>
+                    Arma el plano, responde las condiciones y{" "}
+                    <em className="text-terracota-300">listo.</em>
+                  </>
+                )}
               </h1>
             </div>
             <p className="shrink-0 text-[14px] tabular-nums text-piedra-300">
@@ -929,9 +1009,13 @@ export function Publish() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <Eyebrow index="05">Revisión final</Eyebrow>
-                <h2 className="head mt-2 text-[34px]">Así se verá tu anuncio.</h2>
+                <h2 className="head mt-2 text-[34px]">
+                  {editing ? "Revisa los cambios." : "Así se verá tu anuncio."}
+                </h2>
                 <p className="mt-2 max-w-[56ch] text-[16px] leading-relaxed text-grafito-700">
-                  Al enviarlo lo revisamos antes de mostrarlo al público. Te avisamos por WhatsApp.
+                  {editing
+                    ? "Al guardar, tu anuncio se actualiza con estos datos y conserva su estado."
+                    : "Al enviarlo lo revisamos antes de mostrarlo al público. Te avisamos por WhatsApp."}
                 </p>
               </div>
             </div>
@@ -1009,7 +1093,8 @@ export function Publish() {
                 </>
               ) : (
                 <>
-                  Enviar a revisión <ArrowRight className="size-4" />
+                  {editing ? "Guardar cambios" : "Enviar a revisión"}{" "}
+                  <ArrowRight className="size-4" />
                 </>
               )}
             </Button>

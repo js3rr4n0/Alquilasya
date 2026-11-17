@@ -36,6 +36,7 @@ export const noDatabase = () =>
 
 /** Tras publicar, pausar o borrar: las páginas por zona y el sitemap se regeneran. */
 export function refreshPublicPages() {
+  revalidatePath("/");
   revalidatePath("/alquiler/[zona]", "page");
   revalidatePath("/sitemap.xml");
 }

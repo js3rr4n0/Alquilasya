@@ -7,6 +7,7 @@ import { DURATION, type DurationKey } from "../lib/durations";
 import { dateShort, fromIsoDay } from "../lib/format";
 import { Link, useNavigate } from "../lib/router";
 import { useStore } from "../lib/store";
+import { track } from "../lib/track";
 import { Button, buttonClass, Modal } from "./ui";
 import { fieldClass } from "./WaitlistForm";
 
@@ -78,6 +79,7 @@ export function ContactDialog({
         });
         const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
         if (!res.ok || !data.id) throw new Error(data.error ?? "No pudimos enviar tu mensaje.");
+        track("mensaje_enviado", { via: "chat" });
         onClose();
         navigate(`/mensajes?c=${data.id}`);
       } catch (err) {
@@ -115,6 +117,7 @@ export function ContactDialog({
       } catch {
         /* no pasa nada si no se puede guardar */
       }
+      if (!listing.example) track("mensaje_enviado", { via: "ficha" });
       setResult({ owner: data.owner ?? null });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos enviar tu mensaje.");

@@ -18,6 +18,7 @@ type ListingRow = {
   contact_name: string;
   contact_whatsapp: string;
   owner_email: string | null;
+  edited_at: string | null;
   created_at: string;
 };
 type InquiryRow = {
@@ -173,6 +174,7 @@ export function Admin() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={TONE[l.status]}>{l.status}</Badge>
+                    {l.edited_at && <Badge tone="info">Editado {when(l.edited_at)}</Badge>}
                     <span className="text-[16px] font-semibold">{l.title}</span>
                   </div>
                   <p className="mt-1 text-[14px] text-grafito-600">

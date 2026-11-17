@@ -7,6 +7,7 @@ import { Button, Container, Segmented } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useStore, type Account } from "../lib/store";
+import { track } from "../lib/track";
 
 type Mode = "entrar" | "crear" | "olvide" | "nueva";
 
@@ -95,6 +96,7 @@ export function Auth() {
             : await call("/api/auth/login", "POST", { email: mail, password });
       if (!data.user) throw new Error("No pudimos completar la solicitud.");
       if (data.mailError) toast.error(data.mailError);
+      if (mode === "crear") track("cuenta_creada");
       setUser(data.user);
       navigate(after(data.user), { replace: true });
     } catch (err) {

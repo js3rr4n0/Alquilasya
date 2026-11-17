@@ -1,3 +1,4 @@
+import { GUIDES } from "@/data/guides";
 import { departments } from "@/lib/geo";
 import { abs, FAQ, SITE_DESCRIPTION } from "@/lib/site";
 
@@ -25,9 +26,13 @@ AlquilasYa es un portal de alquiler de viviendas en El Salvador (casas, apartame
 
 - [Inicio](${abs("/")}): qué es y cómo funciona.
 - [Explorar alquileres](${abs("/explorar")}): resultados con filtros por zona, plazo, precio y condiciones, y mapa.
-- [Publicar una propiedad](${abs("/publicar")}): formulario guiado y gratuito para propietarios.
+- [Publicar gratis](${abs("/anunciar")}): cómo anuncian los propietarios, sin costo ni comisión.
 - [Lista de espera](${abs("/lista")}): aviso cuando haya anuncios en una zona.
 - [Privacidad y términos](${abs("/privacidad")})
+
+## Guías
+
+${GUIDES.map((g) => `- [${g.title}](${abs(`/guias/${g.slug}`)}): ${g.answer}`).join("\n")}
 
 ## Alquileres por departamento
 

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { hasDatabase } from "@/lib/db";
+import { GUIDES } from "@/data/guides";
 import { departments, getDistrict } from "@/lib/geo";
 import { abs } from "@/lib/site";
 import { publishedIndex } from "@/server/listings";
@@ -11,7 +12,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages: MetadataRoute.Sitemap = [
     { url: abs("/"), lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: abs("/explorar"), lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: abs("/publicar"), lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: abs("/anunciar"), lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: abs("/guias"), lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    ...GUIDES.map((g) => ({
+      url: abs(`/guias/${g.slug}`),
+      lastModified: new Date(g.updated),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     { url: abs("/lista"), lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: abs("/privacidad"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     ...departments.map((d) => ({
