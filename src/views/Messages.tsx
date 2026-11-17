@@ -18,7 +18,7 @@ const DISAPPEARING: Conversation["disappearing"][] = ["Nunca", "30 d√≠as", "7 d√
 export function Messages() {
   const {
     conversations,
-    listings,
+    examples: listings,
     typing,
     sendMessage,
     shareExpediente,

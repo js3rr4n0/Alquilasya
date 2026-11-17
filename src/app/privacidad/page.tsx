@@ -9,10 +9,11 @@ const SECTIONS = [
   {
     title: "Qué guardamos",
     body: [
+      "Cuenta: nombre, correo, WhatsApp si lo das, y tu contraseña cifrada (nunca en texto legible).",
       "Lista de espera: nombre, correo, WhatsApp, departamento y si buscas o publicas.",
       "Al publicar: los datos del anuncio y tu nombre, WhatsApp y correo de contacto.",
       "Al escribirle a quien publica: tu nombre, tu WhatsApp y el mensaje.",
-      "En tu navegador se guardan tus casas favoritas y la llave de los anuncios que subiste. No usamos cookies de publicidad.",
+      "En tu navegador se guardan tus casas favoritas y una cookie de sesión para mantenerte dentro de tu cuenta. No usamos cookies de publicidad.",
     ],
   },
   {
@@ -34,7 +35,7 @@ const SECTIONS = [
     body: [
       "AlquilasYa publica anuncios y pone en contacto a las partes. No es parte del contrato de alquiler, no recibe ni custodia pagos y no garantiza el estado de los inmuebles.",
       "Quien publica responde por que la información de su anuncio sea cierta y por tener derecho a alquilar el inmueble. Retiramos los anuncios falsos, engañosos o ilegales.",
-      "Los anuncios marcados como «Ejemplo» son ilustrativos: no corresponden a inmuebles disponibles.",
+      "Las casas marcadas como «Ejemplo» en la portada son ilustrativas: no corresponden a inmuebles disponibles.",
       "Antes de pagar o firmar, visita el inmueble y verifica a la otra parte.",
     ],
   },

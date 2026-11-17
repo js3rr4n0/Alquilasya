@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 
@@ -39,4 +40,10 @@ export function isAdmin(request: Request) {
   const given = request.headers.get("x-admin-token") ?? "";
   if (expected.length < 12 || given.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+
+/** Tras publicar, pausar o borrar: las páginas por zona y el sitemap se regeneran. */
+export function refreshPublicPages() {
+  revalidatePath("/alquiler/[zona]", "page");
+  revalidatePath("/sitemap.xml");
 }

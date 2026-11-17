@@ -1,27 +1,52 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
 import { Shell } from "@/components/Shell";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const FONTS =
   "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&display=swap";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://alquilasya.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "AlquilasYa · Alquileres en El Salvador, con todo claro antes de entrar",
+    default: "AlquilasYa · Alquiler de casas y apartamentos en El Salvador",
     template: "%s · AlquilasYa",
   },
-  description:
-    "Alquileres en El Salvador con el precio total, el depósito, el plano y las condiciones por escrito antes de contactar a nadie. Publicar es gratis.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "alquiler El Salvador",
+    "casas en alquiler El Salvador",
+    "apartamentos en alquiler San Salvador",
+    "alquiler de casas San Salvador",
+    "alquiler Santa Tecla",
+    "alquiler Antiguo Cuscatlán",
+    "apartamentos amueblados El Salvador",
+    "alquiler sin comisión",
+    "alquiler directo con dueño",
+    "publicar casa en alquiler gratis",
+  ],
+  alternates: { canonical: "/" },
   openGraph: {
     title: "AlquilasYa · Todo claro antes de entrar",
-    description:
-      "Precio total, depósito, plano y condiciones por escrito antes de contactar a nadie. Alquileres en El Salvador.",
+    description: SITE_DESCRIPTION,
+    url: "/",
     locale: "es_SV",
     type: "website",
-    siteName: "AlquilasYa",
+    siteName: SITE_NAME,
   },
+  twitter: { card: "summary_large_image", title: "AlquilasYa", description: SITE_DESCRIPTION },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  },
+  // Código de Google Search Console (variable GOOGLE_SITE_VERIFICATION).
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
+  category: "real estate",
 };
 
 export const viewport: Viewport = {
@@ -32,7 +57,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
+    <html lang="es-SV">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

@@ -1,16 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useNavigate, useSearchParams } from "@/lib/router";
+import { Link, useNavigate, useSearchParams } from "@/lib/router";
 import { ConditionsSheet } from "../components/ConditionsSheet";
 import { PlanExplorer } from "../components/FloorPlan";
 import { PlanEditor } from "../components/PlanEditor";
-import { Button, Container, Eyebrow, Folio, Segmented } from "../components/ui";
+import { Button, buttonClass, Container, Eyebrow, Folio, Segmented } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { CONDITION_ORDER, CONDITIONS } from "../data/conditions";
-import { ZONES } from "../data/listings";
 import { area as roomArea, ROOM_TYPES } from "../data/rooms";
 import type {
   Condition,
@@ -21,6 +21,7 @@ import type {
 } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, isoDay, m2, money } from "../lib/format";
+import { departments, districtsOf, getDistrict, getMunicipality } from "../lib/geo";
 import { uploadPhoto } from "../lib/upload";
 import { photoUrl } from "../lib/photos";
 import { useStore } from "../lib/store";
@@ -45,38 +46,10 @@ const COVERS = [
   "fachadaColonial",
 ];
 
-/** Centro aproximado de cada departamento, para ubicar el anuncio en el mapa. */
-const DEPARTMENTS: Record<string, [number, number]> = {
-  Ahuachapán: [13.921, -89.845],
-  Cabañas: [13.864, -88.749],
-  Chalatenango: [14.04, -88.938],
-  Cuscatlán: [13.718, -88.933],
-  "La Libertad": [13.677, -89.29],
-  "La Paz": [13.509, -88.868],
-  "La Unión": [13.337, -87.844],
-  Morazán: [13.697, -88.105],
-  "San Miguel": [13.481, -88.178],
-  "San Salvador": [13.699, -89.191],
-  "San Vicente": [13.641, -88.785],
-  "Santa Ana": [13.994, -89.557],
-  Sonsonate: [13.719, -89.724],
-  Usulután: [13.346, -88.44],
-};
-
-/** Zonas conocidas: su departamento y su punto en el mapa. */
-const ZONE_INFO: Record<string, { region: string; at: [number, number] }> = {
-  "Santa Tecla": { region: "La Libertad", at: [13.674, -89.29] },
-  "San Salvador": { region: "San Salvador", at: [13.699, -89.191] },
-  "San Benito": { region: "San Salvador", at: [13.692, -89.238] },
-  "Antiguo Cuscatlán": { region: "La Libertad", at: [13.673, -89.24] },
-  "Centro Histórico": { region: "San Salvador", at: [13.698, -89.191] },
-  "El Tunco": { region: "La Libertad", at: [13.493, -89.382] },
-  "Lago de Coatepeque": { region: "Santa Ana", at: [13.866, -89.553] },
-  Suchitoto: { region: "Cuscatlán", at: [13.938, -89.028] },
-  "Concepción de Ataco": { region: "Ahuachapán", at: [13.87, -89.848] },
-};
-
-const OTHER = "__otra__";
+const LocationPicker = dynamic(() => import("../components/LocationPicker"), {
+  ssr: false,
+  loading: () => <div className="h-[320px] animate-pulse rounded-card bg-arena-200 sm:h-[380px]" />,
+});
 
 function starterFloors(): Floor[] {
   return [
@@ -206,7 +179,7 @@ function starterConditions(): Condition[] {
 }
 
 export function Publish() {
-  const { rememberMine } = useStore();
+  const { user, authLoaded } = useStore();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const stepParam = params.get("paso") as StepKey | null;
@@ -215,9 +188,10 @@ export function Publish() {
 
   const [title, setTitle] = useState("");
   const [type, setType] = useState<PropertyType>("Casa");
-  const [zone, setZone] = useState("Santa Tecla");
-  const [otherZone, setOtherZone] = useState("");
-  const [department, setDepartment] = useState("San Salvador");
+  const [department, setDepartment] = useState("10");
+  const [districtId, setDistrictId] = useState(0);
+  const [colonia, setColonia] = useState("");
+  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [cover, setCover] = useState("laderaAgave");
   const [coverBusy, setCoverBusy] = useState(false);
   const [summary, setSummary] = useState("");
@@ -227,6 +201,14 @@ export function Publish() {
   const [contactEmail, setContactEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
+
+  // Los datos de contacto parten de la cuenta; se pueden cambiar para este anuncio.
+  useEffect(() => {
+    if (!user) return;
+    setContactName((v) => v || user.name);
+    setContactWhatsapp((v) => v || (user.whatsapp ?? ""));
+    setContactEmail((v) => v || user.email);
+  }, [user]);
   const [floors, setFloors] = useState<Floor[]>(starterFloors);
   const [conditions, setConditions] = useState<Condition[]>(starterConditions);
   const [rules, setRules] = useState<string[]>([]);
@@ -286,16 +268,15 @@ export function Publish() {
     }
   }
 
-  const zoneName = zone === OTHER ? otherZone.trim() : zone;
-  const known = ZONE_INFO[zone];
-  const region = known?.region ?? department;
+  const district = getDistrict(districtId);
+  const zoneName = district?.name ?? "";
 
   /** Lo que falta para poder enviar, en palabras de quien publica. */
   function missing() {
     const list: string[] = [];
     const offered = Object.values(prices);
     if (title.trim().length < 3) list.push("Ponle un nombre a la propiedad (paso 1).");
-    if (zoneName.length < 2) list.push("Escribe la zona o el municipio (paso 1).");
+    if (!district) list.push("Elige el distrito donde está la propiedad (paso 1).");
     if (summary.trim().length < 10) list.push("Describe la propiedad en una frase (paso 1).");
     if (contactName.trim().length < 2) list.push("Escribe tu nombre de contacto (paso 1).");
     if (!/^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()))
@@ -317,15 +298,16 @@ export function Publish() {
       go("revisar");
       return;
     }
-    const [lat, lng] = known?.at ?? DEPARTMENTS[department] ?? DEPARTMENTS["San Salvador"];
+    if (!district) return;
+    const at = point ?? { lat: district.lat, lng: district.lng };
     const clean = (src: string) => !/^(blob:|data:)/.test(src);
     const payload = {
       title: title.trim(),
       type,
-      zone: zoneName,
-      region,
-      lat: lat + (Math.random() - 0.5) * 0.012,
-      lng: lng + (Math.random() - 0.5) * 0.012,
+      districtId: district.id,
+      colonia: colonia.trim() || undefined,
+      lat: at.lat,
+      lng: at.lng,
       cover: clean(cover) ? cover : "entradaPiedra",
       summary: summary.trim(),
       description: description.trim(),
@@ -360,15 +342,10 @@ export function Publish() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        id?: string;
-        ownerToken?: string;
-        error?: string;
-      };
-      if (!res.ok || !data.id || !data.ownerToken) {
+      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!res.ok || !data.id) {
         throw new Error(data.error ?? "No pudimos guardar tu anuncio. Intenta de nuevo.");
       }
-      rememberMine({ id: data.id, token: data.ownerToken });
       toast.success("Anuncio enviado. Lo revisamos antes de publicarlo.");
       navigate(`/casa/${data.id}`);
     } catch (error) {
@@ -376,6 +353,31 @@ export function Publish() {
     } finally {
       setSending(false);
     }
+  }
+
+  if (authLoaded && !user) {
+    return (
+      <Container className="py-20 lg:py-28">
+        <div className="mx-auto max-w-[560px] text-center">
+          <p className="label text-terracota-700">Publicar una propiedad</p>
+          <h1 className="serif mt-4 text-[44px] leading-[0.98] sm:text-[56px]">
+            Primero, tu cuenta.
+          </h1>
+          <p className="mt-4 text-[17px] leading-relaxed text-grafito-700">
+            Publicar es gratis. La cuenta sirve para que puedas pausar o borrar tu anuncio y leer
+            los mensajes que te lleguen.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link to="/entrar?modo=crear&next=/publicar" className={buttonClass("primary", "lg")}>
+              Crear cuenta <ArrowRight className="size-4" />
+            </Link>
+            <Link to="/entrar?next=/publicar" className={buttonClass("outline", "lg")}>
+              Ya tengo cuenta
+            </Link>
+          </div>
+        </div>
+      </Container>
+    );
   }
 
   return (
@@ -477,47 +479,80 @@ export function Publish() {
                 </label>
 
                 <label className="block">
-                  <span className="text-[14px] font-medium text-grafito-700">Zona</span>
-                  <select value={zone} onChange={(e) => setZone(e.target.value)} className={fieldClass}>
-                    {ZONES.map((z) => (
-                      <option key={z} value={z}>
-                        {z}
+                  <span className="text-[14px] font-medium text-grafito-700">Departamento</span>
+                  <select
+                    value={department}
+                    onChange={(e) => {
+                      setDepartment(e.target.value);
+                      setDistrictId(0);
+                      setPoint(null);
+                    }}
+                    className={fieldClass}
+                  >
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
                       </option>
                     ))}
-                    <option value={OTHER}>Otra zona o municipio…</option>
                   </select>
                 </label>
 
-                {zone === OTHER && (
-                  <>
-                    <label className="block">
-                      <span className="text-[14px] font-medium text-grafito-700">
-                        Zona, colonia o municipio
-                      </span>
-                      <input
-                        type="text"
-                        value={otherZone}
-                        maxLength={60}
-                        placeholder="Ej.: Colonia Escalón"
-                        onChange={(e) => setOtherZone(e.target.value)}
-                        className={fieldClass}
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-[14px] font-medium text-grafito-700">Departamento</span>
-                      <select
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className={fieldClass}
-                      >
-                        {Object.keys(DEPARTMENTS).map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
+                <label className="block">
+                  <span className="text-[14px] font-medium text-grafito-700">Distrito</span>
+                  <select
+                    value={districtId}
+                    onChange={(e) => {
+                      setDistrictId(Number(e.target.value));
+                      setPoint(null);
+                    }}
+                    className={fieldClass}
+                  >
+                    <option value={0} disabled>
+                      Elige un distrito
+                    </option>
+                    {districtsOf(department).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                  {district && (
+                    <span className="mt-1 block text-[14px] text-grafito-600">
+                      Municipio de {getMunicipality(district.municipalityId)?.name}
+                    </span>
+                  )}
+                </label>
+
+                <label className="block">
+                  <span className="text-[14px] font-medium text-grafito-700">
+                    Colonia o residencial (opcional)
+                  </span>
+                  <input
+                    type="text"
+                    value={colonia}
+                    maxLength={80}
+                    placeholder="Ej.: Colonia Escalón"
+                    onChange={(e) => setColonia(e.target.value)}
+                    className={fieldClass}
+                  />
+                </label>
+
+                {district && (
+                  <div className="sm:col-span-2">
+                    <span className="text-[14px] font-medium text-grafito-700">
+                      Marca en el mapa dónde está
+                    </span>
+                    <p className="mb-2 mt-0.5 text-[14px] leading-snug text-grafito-600">
+                      Toca el mapa o arrastra el pin. Así aparece tu anuncio en el mapa de
+                      resultados; puedes dejarlo en una esquina cercana si no quieres mostrar el
+                      punto exacto.
+                    </p>
+                    <LocationPicker
+                      center={{ lat: district.lat, lng: district.lng }}
+                      value={point}
+                      onChange={setPoint}
+                    />
+                  </div>
                 )}
 
                 <label className="block sm:col-span-2">

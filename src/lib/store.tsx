@@ -18,20 +18,18 @@ import type { DurationKey } from "./durations";
 import { isoDay } from "./format";
 import { replyFor } from "./replies";
 
-/** Un anuncio subido desde este navegador y la llave para volver a verlo. */
-export type Mine = { id: string; token: string };
+export type Account = { id: string; email: string; name: string; whatsapp: string | null };
 
 type Persisted = {
   duration: DurationKey;
   start: string;
   zone: string;
   favorites: string[];
-  mine: Mine[];
   conversations: Conversation[];
   privacy: Privacy;
 };
 
-const KEY = "alquilasya.v2";
+const KEY = "alquilasya.v3";
 
 const EXAMPLES: Listing[] = LISTINGS.map((l) => ({ ...l, example: true }));
 
@@ -46,7 +44,6 @@ function defaults(): Persisted {
     start: firstOfNextMonth(),
     zone: "",
     favorites: [],
-    mine: [],
     conversations: SEED_CONVERSATIONS,
     privacy: DEFAULT_PRIVACY,
   };
@@ -66,6 +63,13 @@ function load(): Persisted {
 
 type Store = Persisted & {
   listings: Listing[];
+  /** Illustrative listings used to explain the product; never mixed into results. */
+  examples: Listing[];
+  /** Signed-in account, or null. `authLoaded` turns true once that is known. */
+  user: Account | null;
+  authLoaded: boolean;
+  setUser: (user: Account | null) => void;
+  logout: () => Promise<void>;
   /** False until the real listings have been requested from the server. */
   loaded: boolean;
   typing: Record<string, boolean>;
@@ -73,8 +77,7 @@ type Store = Persisted & {
   setStart: (iso: string) => void;
   setZone: (z: string) => void;
   toggleFavorite: (id: string) => void;
-  rememberMine: (mine: Mine, listing?: Listing) => void;
-  /** Looks a listing up on the server (pending ones need the owner's token). */
+  /** Looks a listing up on the server (pending ones are only served to their owner). */
   fetchListing: (id: string) => Promise<Listing | null>;
   setPrivacy: (patch: Partial<Privacy>) => void;
   sendMessage: (conversationId: string, text: string) => void;
@@ -98,6 +101,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [remote, setRemote] = useState<Listing[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [user, setUser] = useState<Account | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [typing, setTyping] = useState<Record<string, boolean>>({});
   const timers = useRef<number[]>([]);
   const stateRef = useRef(state);
@@ -116,6 +121,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       /* storage full or unavailable: the session still works in memory */
     }
   }, [state, hydrated]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : { user: null }))
+      .then((d: { user: Account | null }) => alive && setUser(d.user ?? null))
+      .catch(() => {})
+      .finally(() => alive && setAuthLoaded(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -138,22 +155,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
 
-  const listings = useMemo(() => {
-    const mine = new Set(state.mine.map((m) => m.id));
-    const real = remote.map((l) => (mine.has(l.id) ? { ...l, isNew: true } : l));
-    return [...real, ...EXAMPLES];
-  }, [remote, state.mine]);
-  const listingsRef = useRef(listings);
-  listingsRef.current = listings;
+  // Only published listings from the database; pending ones fetched for their owner stay out.
+  const listings = useMemo(
+    () => remote.filter((l) => !l.status || l.status === "publicada"),
+    [remote],
+  );
+  const allRef = useRef<Listing[]>([]);
+  allRef.current = [...remote, ...EXAMPLES];
 
   const fetchListing = useCallback(async (id: string) => {
-    const known = listingsRef.current.find((l) => l.id === id);
+    const known = allRef.current.find((l) => l.id === id);
     if (known) return known;
-    const token = stateRef.current.mine.find((m) => m.id === id)?.token;
     try {
-      const res = await fetch(
-        `/api/listings/${encodeURIComponent(id)}${token ? `?token=${encodeURIComponent(token)}` : ""}`,
-      );
+      const res = await fetch(`/api/listings/${encodeURIComponent(id)}`);
       if (!res.ok) return null;
       const { listing } = (await res.json()) as { listing: Listing };
       setRemote((current) => [listing, ...current.filter((l) => l.id !== listing.id)]);
@@ -179,7 +193,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       later(() => setTyping((t) => ({ ...t, [conversationId]: true })), 500);
       later(() => {
         const conv = stateRef.current.conversations.find((c) => c.id === conversationId);
-        const listing = listingsRef.current.find((l) => l.id === conv?.listingId);
+        const listing = allRef.current.find((l) => l.id === conv?.listingId);
         setTyping((t) => ({ ...t, [conversationId]: false }));
         if (!conv || !listing) return;
         const reply: Message = {
@@ -198,6 +212,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const store: Store = {
     ...state,
     listings,
+    examples: EXAMPLES,
+    user,
+    authLoaded,
+    setUser,
+    logout: async () => {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+      setUser(null);
+      // Anuncios en revisión que solo veía su dueño dejan de estar en memoria.
+      setRemote((current) => current.filter((l) => !l.status || l.status === "publicada"));
+    },
     loaded,
     typing,
     setDuration: (duration) => setState((s) => ({ ...s, duration })),
@@ -210,10 +234,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ? s.favorites.filter((f) => f !== id)
           : [...s.favorites, id],
       })),
-    rememberMine: (mine, listing) => {
-      setState((s) => ({ ...s, mine: [mine, ...s.mine.filter((m) => m.id !== mine.id)] }));
-      if (listing) setRemote((current) => [listing, ...current.filter((l) => l.id !== listing.id)]);
-    },
     fetchListing,
     setPrivacy: (patch) => setState((s) => ({ ...s, privacy: { ...s.privacy, ...patch } })),
     sendMessage: (conversationId, text) => {
@@ -311,7 +331,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     openConversation: (listingId) => {
       const existing = stateRef.current.conversations.find((c) => c.listingId === listingId);
       if (existing) return existing.id;
-      const listing = listings.find((l) => l.id === listingId);
+      const listing = allRef.current.find((l) => l.id === listingId);
       const id = `c-${listingId}`;
       const conv: Conversation = {
         id,
@@ -354,16 +374,23 @@ export function useStore() {
  * A listing by id. Examples and published listings resolve at once; a listing
  * still in review is fetched with the token kept by whoever published it.
  */
-export function useListing(id: string | undefined) {
-  const { listings, loaded, fetchListing } = useStore();
-  const found = listings.find((l) => l.id === id);
+export function useListing(id: string | undefined, initial?: Listing) {
+  const { listings, examples, loaded, fetchListing } = useStore();
+  const [fetched, setFetched] = useState<Listing | null>(null);
   const [missing, setMissing] = useState<string | null>(null);
+  const found =
+    listings.find((l) => l.id === id) ??
+    examples.find((l) => l.id === id) ??
+    (fetched?.id === id ? fetched : undefined) ??
+    (initial?.id === id ? initial : undefined);
 
   useEffect(() => {
     if (!id || found || !loaded) return;
     let alive = true;
     fetchListing(id).then((l) => {
-      if (alive && !l) setMissing(id);
+      if (!alive) return;
+      if (l) setFetched(l);
+      else setMissing(id);
     });
     return () => {
       alive = false;

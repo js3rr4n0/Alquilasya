@@ -5,7 +5,70 @@
  * Lo usan `npm run db:migrate` (y el build) y, como red de seguridad,
  * el servidor en su primer acceso a la base.
  */
+import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
+
+/** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
+export const SCHEMA_VERSION = 3;
+
+const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
+const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
+
 export const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS schema_meta (
+    id       BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
+    version  INTEGER NOT NULL
+  )`,
+
+  // División territorial vigente (2024): departamento → municipio → distrito.
+  `CREATE TABLE IF NOT EXISTS departments (
+    id    TEXT PRIMARY KEY,
+    name  TEXT NOT NULL,
+    lat   DOUBLE PRECISION NOT NULL,
+    lng   DOUBLE PRECISION NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS municipalities (
+    id             INTEGER PRIMARY KEY,
+    department_id  TEXT NOT NULL REFERENCES departments (id),
+    name           TEXT NOT NULL,
+    lat            DOUBLE PRECISION NOT NULL,
+    lng            DOUBLE PRECISION NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS districts (
+    id               INTEGER PRIMARY KEY,
+    municipality_id  INTEGER NOT NULL REFERENCES municipalities (id),
+    name             TEXT NOT NULL,
+    lat              DOUBLE PRECISION NOT NULL,
+    lng              DOUBLE PRECISION NOT NULL
+  )`,
+  `INSERT INTO departments (id, name, lat, lng) VALUES
+    ${rows(DEPARTMENTS, ([id, name, lat, lng]) => [q(id), q(name), lat, lng])}
+   ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lat = EXCLUDED.lat, lng = EXCLUDED.lng`,
+  `INSERT INTO municipalities (id, department_id, name, lat, lng) VALUES
+    ${rows(MUNICIPALITIES, ([id, dep, name, lat, lng]) => [id, q(dep), q(name), lat, lng])}
+   ON CONFLICT (id) DO UPDATE SET department_id = EXCLUDED.department_id, name = EXCLUDED.name,
+     lat = EXCLUDED.lat, lng = EXCLUDED.lng`,
+  `INSERT INTO districts (id, municipality_id, name, lat, lng) VALUES
+    ${rows(DISTRICTS, ([id, muni, name, lat, lng]) => [id, muni, q(name), lat, lng])}
+   ON CONFLICT (id) DO UPDATE SET municipality_id = EXCLUDED.municipality_id, name = EXCLUDED.name,
+     lat = EXCLUDED.lat, lng = EXCLUDED.lng`,
+
+  // Cuentas. La contraseña se guarda como hash scrypt; la sesión, como hash del token.
+  `CREATE TABLE IF NOT EXISTS users (
+    id             BIGSERIAL PRIMARY KEY,
+    email          TEXT NOT NULL UNIQUE,
+    password_hash  TEXT NOT NULL,
+    name           TEXT NOT NULL,
+    whatsapp       TEXT,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+    token_hash  TEXT PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at  TIMESTAMPTZ NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)`,
+
   // Lista de espera (ya existía en producción; se respeta su forma).
   `CREATE TABLE IF NOT EXISTS waitlist (
     id            BIGSERIAL PRIMARY KEY,
@@ -40,13 +103,23 @@ export const SCHEMA = [
     contact_whatsapp  TEXT NOT NULL,
     contact_email     TEXT,
     plan              TEXT NOT NULL DEFAULT 'gratis',
-    owner_token       TEXT NOT NULL,
+    user_id           BIGINT REFERENCES users (id) ON DELETE CASCADE,
+    district_id       INTEGER REFERENCES districts (id),
+    lat               DOUBLE PRECISION,
+    lng               DOUBLE PRECISION,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     published_at      TIMESTAMPTZ
   )`,
+  // Bases creadas con la primera versión del esquema.
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users (id) ON DELETE CASCADE`,
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS district_id INTEGER REFERENCES districts (id)`,
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`,
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`,
+  `ALTER TABLE listings DROP COLUMN IF EXISTS owner_token`,
+  `CREATE INDEX IF NOT EXISTS listings_user_idx ON listings (user_id)`,
+  `CREATE INDEX IF NOT EXISTS listings_district_idx ON listings (district_id)`,
   `CREATE INDEX IF NOT EXISTS listings_status_idx ON listings (status, published_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS listings_zone_idx ON listings (zone)`,
 
   // Mensajes de quien busca hacia quien publica.
   `CREATE TABLE IF NOT EXISTS inquiries (
@@ -62,4 +135,7 @@ export const SCHEMA = [
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS inquiries_listing_idx ON inquiries (listing_id, created_at DESC)`,
+
+  `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
+   ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,
 ];

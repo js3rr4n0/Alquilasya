@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hasDatabase } from "@/lib/db";
-import { isAdmin, noDatabase } from "@/server/http";
+import { isAdmin, noDatabase, refreshPublicPages } from "@/server/http";
 import { adminOverview, setListingStatus } from "@/server/listings";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Solicitud inválida." }, { status: 400 });
   try {
     const ok = await setListingStatus(parsed.data.id, parsed.data.status);
+    if (ok) refreshPublicPages();
     return ok
       ? NextResponse.json({ ok: true })
       : NextResponse.json({ error: "Anuncio no encontrado." }, { status: 404 });
