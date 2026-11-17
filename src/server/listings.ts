@@ -188,10 +188,8 @@ export async function getListing(id: string, userId?: string | null): Promise<Li
 
 type Place = { district: string; municipality: string; department: string };
 
-export async function createListing(
-  input: ListingInput,
-  owner: { id: string; email: string },
-) {
+/** Valida el distrito y arma la ficha y las columnas a partir del formulario. */
+async function prepare(input: ListingInput) {
   const { contact, plan, districtId, ...fields } = input;
   const places = await query<Place>(
     `SELECT d.name AS district, m.name AS municipality, p.name AS department
@@ -234,42 +232,91 @@ export async function createListing(
     publishedAt: day(new Date()),
   };
 
-  const base = slugify(`${fields.title} ${place.district}`);
+  /** Columnas $2…$18, en el orden que usan el INSERT y el UPDATE. */
+  const columns = [
+    fields.title,
+    fields.type,
+    place.district,
+    place.department,
+    bedrooms,
+    bathrooms,
+    area,
+    fields.prices.mes ?? null,
+    fields.deposit,
+    contact.name,
+    contact.whatsapp,
+    contact.email || null,
+    plan,
+    districtId,
+    fields.lat,
+    fields.lng,
+  ];
+  return { data, columns, place, title: fields.title };
+}
+
+export async function createListing(input: ListingInput, owner: { id: string; email: string }) {
+  const { data, columns, place, title } = await prepare(input);
+  columns[11] ??= owner.email;
+  const base = slugify(`${title} ${place.district}`);
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = attempt === 0 ? base : `${base}-${randomBytes(2).toString("hex")}`;
     const rows = await query<{ id: string }>(
       `INSERT INTO listings
          (id, title, type, zone, region, bedrooms, bathrooms, area, price_month, deposit,
-          data, contact_name, contact_whatsapp, contact_email, plan, user_id, district_id, lat, lng)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17,$18,$19)
+          contact_name, contact_whatsapp, contact_email, plan, district_id, lat, lng, data, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,$19)
        ON CONFLICT (id) DO NOTHING
        RETURNING id`,
-      [
-        id,
-        fields.title,
-        fields.type,
-        place.district,
-        place.department,
-        bedrooms,
-        bathrooms,
-        area,
-        fields.prices.mes ?? null,
-        fields.deposit,
-        JSON.stringify({ ...data, id }),
-        contact.name,
-        contact.whatsapp,
-        contact.email || owner.email,
-        plan,
-        owner.id,
-        districtId,
-        fields.lat,
-        fields.lng,
-      ],
+      [id, ...columns, JSON.stringify({ ...data, id }), owner.id],
     );
     if (rows[0]) return { id: rows[0].id };
   }
   throw new Error("No se pudo generar un identificador para el anuncio.");
+}
+
+/**
+ * Edición por su dueño. Conserva la dirección (id) y el estado: un anuncio
+ * publicado sigue publicado y queda marcado como editado para revisión posterior.
+ * Uno rechazado vuelve a revisión.
+ */
+export async function updateListing(id: string, input: ListingInput, owner: { id: string; email: string }) {
+  const { data, columns } = await prepare(input);
+  columns[11] ??= owner.email;
+  const rows = await query<{ id: string; status: ListingStatus }>(
+    `UPDATE listings SET
+        title = $2, type = $3, zone = $4, region = $5, bedrooms = $6, bathrooms = $7, area = $8,
+        price_month = $9, deposit = $10, contact_name = $11, contact_whatsapp = $12,
+        contact_email = $13, plan = $14, district_id = $15, lat = $16, lng = $17,
+        data = $18::jsonb,
+        status = CASE WHEN status = 'rechazada' THEN 'pendiente' ELSE status END,
+        edited_at = now(), updated_at = now()
+      WHERE id = $1 AND user_id = $19
+      RETURNING id, status`,
+    [id, ...columns, JSON.stringify({ ...data, id }), owner.id],
+  );
+  return rows[0] ?? null;
+}
+
+/** Lo que necesita el formulario para editar: la ficha y los datos de contacto. Solo para su dueño. */
+export async function getListingForEdit(id: string, userId: string) {
+  const rows = await query<{
+    data: Listing;
+    status: ListingStatus;
+    contact_name: string;
+    contact_whatsapp: string;
+    contact_email: string | null;
+  }>(
+    `SELECT data, status, contact_name, contact_whatsapp, contact_email
+       FROM listings WHERE id = $1 AND user_id = $2`,
+    [id, userId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    listing: { ...row.data, id, status: row.status },
+    contact: { name: row.contact_name, whatsapp: row.contact_whatsapp, email: row.contact_email ?? "" },
+  };
 }
 
 /** Error que se puede mostrar tal cual a quien envía el formulario. */
@@ -280,7 +327,7 @@ export class InputError extends Error {}
 export async function accountOverview(userId: string) {
   const [listings, inquiries] = await Promise.all([
     query(
-      `SELECT id, status, title, type, zone, region, price_month, created_at, published_at
+      `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at
          FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId],
     ),
@@ -376,7 +423,7 @@ export async function adminOverview() {
   const [listings, inquiries, users, totals] = await Promise.all([
     query(
       `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
-              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, u.email AS owner_email
+              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, u.email AS owner_email
          FROM listings l LEFT JOIN users u ON u.id = l.user_id
         ORDER BY l.created_at DESC LIMIT 200`,
     ),

@@ -15,7 +15,8 @@ Next.js 16 (App Router) · Tailwind CSS 4 · Postgres (Neon) · Vercel Blob.
 | `/casa/[id]` | Ficha: plano, condiciones, costos y «Escribir al propietario» |
 | `/entrar`, `/verificar`, `/cuenta` | Cuenta con correo y contraseña, confirmada con un código de 6 dígitos; panel con mis anuncios |
 | `/mensajes` | Chat privado entre quien busca y quien publica |
-| `/publicar` | Formulario guiado (pide cuenta); el anuncio queda **en revisión** |
+| `/publicar` | Formulario guiado (pide cuenta); el anuncio queda **en revisión**. Con `?editar=` edita uno propio |
+| `/anunciar`, `/guias` | Aterrizaje para propietarios y guías para buscadores y asistentes de IA |
 | `/lista` | Lista de espera |
 | `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): moderación, usuarios y totales |
 | `/api/health` | Para un monitor externo: 200 si el sitio y la base responden |
@@ -63,6 +64,14 @@ El esquema está en `db/schema.mjs` y es idempotente:
 ```bash
 npm run db:migrate   # crea o actualiza las tablas
 ```
+
+### Empezar de cero sobre una base que ya existía
+
+Para borrar **todo** (también la lista de espera anterior) y dejar solo el
+esquema nuevo con la geografía cargada: añade en Vercel la variable `DB_RESET`
+con un valor cualquiera, por ejemplo la fecha, y vuelve a desplegar. Cada valor
+se aplica una sola vez; dejarla puesta no borra nada en los siguientes
+despliegues. No se puede deshacer: exporta antes lo que quieras conservar.
 
 ## Desarrollo
 

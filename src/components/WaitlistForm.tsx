@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { cx } from "@/lib/format";
+import { track } from "@/lib/track";
 import { buttonClass } from "./ui";
 
 const formSchema = z.object({
@@ -94,6 +95,7 @@ export default function WaitlistForm({
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Ocurrió un error inesperado");
+      track("lista_espera", { tipo: data.tipo_usuario, origen });
       setDone(true);
       onSuccess?.();
     } catch (error) {

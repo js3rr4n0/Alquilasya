@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button, Container } from "../components/ui";
 import { useNavigate, useSearchParams } from "../lib/router";
 import { useStore, type Account } from "../lib/store";
+import { track } from "../lib/track";
 import { safeNext } from "./Auth";
 
 /** Confirmar el correo con el código de 6 dígitos que llegó a la bandeja. */
@@ -45,6 +46,7 @@ export function Verify() {
     setBusy(false);
     if (!res.ok || !data.user) return setError(data.error ?? "No pudimos confirmar el código.");
     setUser(data.user);
+    track("correo_verificado");
     toast.success("Correo confirmado.");
     navigate(next, { replace: true });
   }

@@ -9,6 +9,8 @@ import { FloorPlan, PlanExplorer } from "../components/FloorPlan";
 import { ListingCard, roomsLabel } from "../components/ListingCard";
 import { SearchBar } from "../components/SearchBar";
 import { Badge, ButtonLink, Container, Eyebrow, Folio, SectionTitle } from "../components/ui";
+import { GUIDES } from "../data/guides";
+import type { Listing } from "../data/types";
 import { DURATIONS, priceSuffix, type DurationKey } from "../lib/durations";
 import { cx, m2, money } from "../lib/format";
 import { departments } from "../lib/geo";
@@ -27,8 +29,12 @@ const EXAMPLES: Record<DurationKey, { id: string; why: string }> = {
   anio: { id: "casa-los-naranjos", why: "Contrato anual a precio reducido, directo con el dueño." },
 };
 
-export function Home() {
-  const { listings, examples, loaded, duration, setDuration } = useStore();
+export function Home({ initial = [] }: { initial?: Listing[] }) {
+  const store = useStore();
+  const { examples, duration, setDuration } = store;
+  // Hasta que el navegador pide los anuncios, se usan los que llegaron en el HTML.
+  const loaded = store.loaded || initial.length > 0;
+  const listings = store.loaded ? store.listings : initial;
   // Las piezas que explican el producto usan casas de ejemplo; los resultados, solo anuncios reales.
   const naranjos = examples.find((l) => l.id === "casa-los-naranjos") ?? examples[0];
   const palmas = examples.find((l) => l.id === "apartamento-las-palmas") ?? examples[1];
@@ -499,6 +505,20 @@ export function Home() {
                       className="inline-flex h-10 items-center rounded-ctl bg-crema-050 px-3.5 text-[15px] text-grafito-700 ring-1 ring-piedra-250 hover:text-negro hover:ring-negro"
                     >
                       {d.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              <h3 className="head mt-12 text-[24px]">Guías para alquilar.</h3>
+              <ul className="mt-4 space-y-2.5">
+                {GUIDES.slice(0, 5).map((g) => (
+                  <li key={g.slug}>
+                    <Link
+                      to={`/guias/${g.slug}`}
+                      className="text-[16px] text-grafito-700 underline decoration-piedra-300 underline-offset-4 hover:text-negro hover:decoration-negro"
+                    >
+                      {g.title}
                     </Link>
                   </li>
                 ))}

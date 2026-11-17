@@ -194,6 +194,9 @@ export function Account() {
                       <p className="mt-0.5 text-[14px] text-grafito-600">{STATUS[l.status].hint}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <ButtonLink to={`/publicar?editar=${encodeURIComponent(l.id)}`} variant="outline" size="sm">
+                        Editar
+                      </ButtonLink>
                       {l.status === "publicada" && (
                         <Button variant="outline" size="sm" disabled={busy} onClick={() => act(l.id, "pausar")}>
                           Pausar

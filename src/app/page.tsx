@@ -1,8 +1,25 @@
 import { JsonLd } from "@/components/JsonLd";
 import { abs, FAQ, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import type { Listing } from "@/data/types";
+import { hasDatabase } from "@/lib/db";
+import { listPublished } from "@/server/listings";
 import { Home } from "@/views/Home";
 
-export default function Page() {
+export const revalidate = 300;
+
+/** Los anuncios más recientes van en el HTML: así los ven los buscadores sin ejecutar nada. */
+async function latest(): Promise<Listing[]> {
+  if (!hasDatabase()) return [];
+  try {
+    return (await listPublished()).slice(0, 8);
+  } catch (error) {
+    console.error("home", error);
+    return [];
+  }
+}
+
+export default async function Page() {
+  const initial = await latest();
   return (
     <>
       <JsonLd
@@ -39,7 +56,7 @@ export default function Page() {
           },
         ]}
       />
-      <Home />
+      <Home initial={initial} />
     </>
   );
 }

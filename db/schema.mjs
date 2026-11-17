@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -18,6 +18,8 @@ export const SCHEMA = [
     id       BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
     version  INTEGER NOT NULL
   )`,
+  // Último valor de DB_RESET aplicado (ver scripts/migrate.mjs).
+  `ALTER TABLE schema_meta ADD COLUMN IF NOT EXISTS reset_token TEXT`,
 
   // División territorial vigente (2024): departamento → municipio → distrito.
   `CREATE TABLE IF NOT EXISTS departments (
@@ -137,6 +139,8 @@ export const SCHEMA = [
   `ALTER TABLE listings ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`,
   `ALTER TABLE listings ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`,
   `ALTER TABLE listings DROP COLUMN IF EXISTS owner_token`,
+  // Cuándo editó el anuncio su dueño por última vez (el admin lo ve como «Editado»).
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ`,
   `CREATE INDEX IF NOT EXISTS listings_user_idx ON listings (user_id)`,
   `CREATE INDEX IF NOT EXISTS listings_district_idx ON listings (district_id)`,
   `CREATE INDEX IF NOT EXISTS listings_status_idx ON listings (status, published_at DESC)`,

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "sonner";
+import { GoogleTag } from "@/components/GoogleTag";
 import { Shell } from "@/components/Shell";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* Métricas de Vercel: visitas y velocidad real. No usan cookies. */}
         <Analytics />
         <SpeedInsights />
+        <GoogleTag />
         <Toaster
           position="top-center"
           toastOptions={{
