@@ -1,5 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { blobConfigured } from "@/server/blob";
 import { rateLimited, tooMany } from "@/server/http";
 
 const TYPES: Record<string, string> = {
@@ -12,7 +13,7 @@ const MAX_BYTES = 4 * 1024 * 1024;
 /** Sube una foto a Vercel Blob. Si el almacén no está conectado, responde 501. */
 export async function POST(request: Request) {
   if (rateLimited(request, "upload", 40)) return tooMany();
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!blobConfigured()) {
     return NextResponse.json(
       { error: "El almacenamiento de fotos aún no está conectado." },
       { status: 501 },
