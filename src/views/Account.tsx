@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Badge, Button, ButtonLink, Container, Switch } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { PLANS, usd, type PlanId } from "../lib/plans";
-import { Link, useNavigate } from "../lib/router";
+import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useStore, type Account as User } from "../lib/store";
 
 type Status = "pendiente" | "publicada" | "rechazada" | "pausada";
@@ -42,6 +42,8 @@ const STATUS: Record<Status, { label: string; tone: "aviso" | "exito" | "error" 
 export function Account() {
   const { user, authLoaded, setUser, logout } = useStore();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const justPaid = params.get("pago") === "ok";
   const [listings, setListings] = useState<ListingRow[] | null>(null);
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -155,6 +157,13 @@ export function Account() {
           </Button>
         </div>
       </div>
+
+      {justPaid && (
+        <div role="status" className="mt-8 rounded-card bg-exito-bg px-5 py-4 text-[15px] text-exito">
+          <strong className="font-semibold">Pago recibido.</strong> Tu anuncio ya está destacado y aparece primero
+          en las búsquedas. Wompi te envió el comprobante por correo.
+        </div>
+      )}
 
       {!user.verified && (
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-card bg-aviso-bg px-5 py-4 text-aviso">
