@@ -1,34 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AlquilasYa
 
-## Getting Started
+Alquileres en El Salvador con el precio total, el depósito, el plano y las
+condiciones por escrito antes de contactar a nadie.
 
-First, run the development server:
+Next.js 16 (App Router) · Tailwind CSS 4 · Postgres (Neon) · Vercel Blob.
+
+## Qué hace hoy
+
+| Ruta | Qué es |
+| --- | --- |
+| `/` | Portada y buscador |
+| `/explorar` | Resultados con filtros y mapa |
+| `/casa/[id]` | Ficha: plano, condiciones, costos y «Escribir al propietario» |
+| `/publicar` | Formulario guiado; el anuncio queda **en revisión** |
+| `/lista` | Lista de espera |
+| `/admin` | Moderación: publicar, pausar o rechazar anuncios; leer mensajes |
+| `/mensajes`, `/expediente` | Vistas de demostración (próximamente) |
+
+Los nueve anuncios que trae el sitio están marcados como **Ejemplo**. Los
+anuncios reales viven en la base de datos y aparecen primero.
+
+## Puesta en marcha en Vercel
+
+1. **Storage → Create Database → Neon (Postgres)** y conéctala al proyecto.
+   Crea sola la variable `DATABASE_URL`.
+2. (Opcional) **Storage → Blob** para que quien publica pueda subir sus fotos.
+   Crea sola `BLOB_READ_WRITE_TOKEN`. Sin ella se usan fotos de muestra.
+3. En **Settings → Environment Variables** añade `ADMIN_TOKEN` (una clave larga
+   y única, mínimo 12 caracteres) y `NEXT_PUBLIC_SITE_URL`.
+4. Vuelve a desplegar. Las tablas se crean solas durante el build
+   (`scripts/migrate.mjs`) y, por si acaso, en el primer acceso a la base.
+
+Ver `.env.example` para la lista completa de variables.
+
+## Base de datos
+
+El esquema está en `db/schema.mjs` y es idempotente:
+
+- `waitlist`: lista de espera.
+- `listings`: anuncios (`status`: pendiente, publicada, rechazada, pausada);
+  la ficha completa va en la columna `data` (JSONB).
+- `inquiries`: mensajes de quien busca hacia quien publica.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run db:migrate   # crea o actualiza las tablas
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Desarrollo
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+cp .env.example .env.local   # y completa DATABASE_URL
+npm run dev
+```
 
-## Learn More
+Con un Postgres local (`postgres://usuario@localhost:5432/alquilasya`) se usa
+el driver `pg`; con Neon, su driver HTTP.
 
-To learn more about Next.js, take a look at the following resources:
+## Marca
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Logotipos oficiales en `public/brand/` y como componentes en `src/brand/`.
+Por debajo de 200 px el logotipo va en una sola tinta; el texto del sitio no
+baja de 14 px.

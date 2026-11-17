@@ -1,47 +1,77 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Loader2, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { cx } from "@/lib/format";
+import { buttonClass } from "./ui";
 
-// Zod schema for client-side validation, ensuring data integrity before network request
 const formSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
-  whatsapp: z.string().regex(/^\+?[0-9\s\-]{8,20}$/, 'Número de WhatsApp inválido'),
-  tipo_usuario: z.enum(['inquilino', 'propietario'], {
-    message: 'Selecciona una opción',
-  }),
-  departamento: z.string().min(1, 'Selecciona tu departamento').max(100),
-  email: z.string().email('Ingresa un correo válido').max(255),
+  nombre: z.string().trim().min(2, "Escribe tu nombre").max(100),
+  whatsapp: z.string().regex(/^\+?[0-9\s\-]{8,20}$/, "Número de WhatsApp inválido"),
+  tipo_usuario: z.enum(["inquilino", "propietario"], { message: "Elige una opción" }),
+  departamento: z.string().min(1, "Elige tu departamento").max(100),
+  email: z.string().email("Escribe un correo válido").max(255),
 });
 
-// Infering the type from our schema for strict type safety
 type FormData = z.infer<typeof formSchema>;
 
-// Geographic options (Assumed El Salvador 14 departments based on context)
 const DEPARTAMENTOS = [
-  'Ahuachapán', 'Cabañas', 'Chalatenango', 'Cuscatlán', 'La Libertad',
-  'La Paz', 'La Unión', 'Morazán', 'San Miguel', 'San Salvador',
-  'San Vicente', 'Santa Ana', 'Sonsonate', 'Usulután'
+  "Ahuachapán",
+  "Cabañas",
+  "Chalatenango",
+  "Cuscatlán",
+  "La Libertad",
+  "La Paz",
+  "La Unión",
+  "Morazán",
+  "San Miguel",
+  "San Salvador",
+  "San Vicente",
+  "Santa Ana",
+  "Sonsonate",
+  "Usulután",
 ];
 
-export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [origen, setOrigen] = useState('organico');
+export const fieldClass =
+  "mt-1.5 h-12 w-full rounded-ctl bg-crema-100 px-3.5 text-[16px] text-negro ring-1 ring-piedra-250 outline-none transition-shadow placeholder:text-piedra-400 focus:ring-2 focus:ring-negro";
+
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[14px] font-medium text-grafito-700">{label}</span>
+      {children}
+      {error && <span className="mt-1 block text-[14px] font-medium text-error">{error}</span>}
+    </label>
+  );
+}
+
+export default function WaitlistForm({
+  defaultTipo,
+  onSuccess,
+}: {
+  defaultTipo?: "inquilino" | "propietario";
+  onSuccess?: () => void;
+}) {
+  const [done, setDone] = useState(false);
+  const [origen, setOrigen] = useState("organico");
 
   useEffect(() => {
-    // We use window.location.search inside useEffect to safely grab the 'ref' param without breaking Next.js hydration
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref');
-      if (ref) setOrigen(ref);
-    }
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setOrigen(ref.slice(0, 60));
   }, []);
 
-  // Integrating react-hook-form with Zod for robust validation
   const {
     register,
     handleSubmit,
@@ -50,176 +80,142 @@ export default function WaitlistForm({ onSuccess }: { onSuccess?: () => void }) 
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      tipo_usuario: undefined,
-      departamento: '',
-    },
+    defaultValues: { tipo_usuario: defaultTipo, departamento: "" },
   });
 
-  const selectedTipo = watch('tipo_usuario');
+  const tipo = watch("tipo_usuario");
 
-  const onSubmit = async (data: FormData) => {
+  async function onSubmit(data: FormData) {
     try {
-      const payload = { ...data, origen };
-      const response = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, origen }),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Ocurrió un error inesperado');
-      }
-
-      setIsSuccess(true);
-      toast.success(result.message);
-      if (onSuccess) onSuccess();
-    } catch (error: any) {
-      toast.error(error.message);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Ocurrió un error inesperado");
+      setDone(true);
+      onSuccess?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Ocurrió un error inesperado");
     }
-  };
+  }
 
-  if (isSuccess) {
+  if (done) {
     return (
-      <div className="w-full max-w-md mx-auto p-8 text-center bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-500">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-8 h-8 text-green-600" />
-        </div>
-        <h3 className="text-2xl font-bold text-gray-900">¡Registro Exitoso!</h3>
-        <p className="text-gray-600">
-          Gracias por unirte a nuestra waitlist. Te notificaremos al correo registrado tan pronto como lancemos.
+      <div className="rounded-card bg-crema-050 p-7 ring-1 ring-piedra-250 sm:p-9" role="status">
+        <span className="inline-flex size-11 items-center justify-center rounded-full bg-exito-bg text-exito">
+          <Check className="size-5" strokeWidth={2.2} />
+        </span>
+        <h3 className="head mt-5 text-[28px]">Ya estás en la lista.</h3>
+        <p className="mt-2 max-w-[42ch] text-[16px] leading-relaxed text-grafito-700">
+          Te escribiremos al correo que dejaste antes del lanzamiento. Solo lo usamos para eso.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Únete a la Waitlist</h2>
-        <p className="text-gray-500">Sé de los primeros en acceder a nuestra plataforma.</p>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+      className="space-y-5 rounded-card bg-crema-050 p-6 ring-1 ring-piedra-250 sm:p-8"
+    >
+      <div>
+        <span className="text-[14px] font-medium text-grafito-700">¿Buscas o publicas?</span>
+        <div className="mt-1.5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de usuario">
+          {(
+            [
+              { v: "inquilino", label: "Busco alquiler" },
+              { v: "propietario", label: "Tengo un inmueble" },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              role="radio"
+              aria-checked={tipo === o.v}
+              onClick={() => setValue("tipo_usuario", o.v, { shouldValidate: true })}
+              className={cx(
+                "h-12 rounded-ctl px-3 text-[15px] font-medium ring-1 transition-colors",
+                tipo === o.v
+                  ? "bg-negro text-crema-100 ring-negro"
+                  : "bg-crema-100 text-grafito-700 ring-piedra-250 hover:ring-negro",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        {errors.tipo_usuario && (
+          <span className="mt-1 block text-[14px] font-medium text-error">
+            {errors.tipo_usuario.message}
+          </span>
+        )}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Name Field */}
-        <div className="space-y-2">
-          <label htmlFor="nombre" className="text-sm font-semibold text-gray-700 block">
-            Nombre y Apellido
-          </label>
+      <Field label="Correo electrónico" error={errors.email?.message}>
+        <input
+          type="email"
+          autoComplete="email"
+          placeholder="tu@correo.com"
+          className={fieldClass}
+          {...register("email")}
+        />
+      </Field>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Nombre" error={errors.nombre?.message}>
           <input
-            id="nombre"
             type="text"
-            placeholder="Ej. Carlos Martinez"
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-black focus:border-transparent transition-all outline-none"
-            {...register('nombre')}
+            autoComplete="name"
+            placeholder="Nombre y apellido"
+            className={fieldClass}
+            {...register("nombre")}
           />
-          {errors.nombre && <span className="text-red-500 text-xs font-medium">{errors.nombre.message}</span>}
-        </div>
-
-        {/* WhatsApp Field */}
-        <div className="space-y-2">
-          <label htmlFor="whatsapp" className="text-sm font-semibold text-gray-700 block">
-            WhatsApp principal
-          </label>
+        </Field>
+        <Field label="WhatsApp" error={errors.whatsapp?.message}>
           <input
-            id="whatsapp"
             type="tel"
-            placeholder="Ej. +503 7000 0000"
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-black focus:border-transparent transition-all outline-none"
-            {...register('whatsapp')}
+            autoComplete="tel"
+            placeholder="+503 7000 0000"
+            className={fieldClass}
+            {...register("whatsapp")}
           />
-          {errors.whatsapp && <span className="text-red-500 text-xs font-medium">{errors.whatsapp.message}</span>}
-        </div>
+        </Field>
+      </div>
 
-        {/* User Type Buttons (Tenant or Owner) */}
-        <div className="space-y-3">
-          <label className="text-sm font-semibold text-gray-700 block">
-            ¿Eres Inquilino o Propietario?
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => setValue('tipo_usuario', 'inquilino', { shouldValidate: true })}
-              className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${selectedTipo === 'inquilino'
-                ? 'bg-black text-white border-black shadow-md'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                }`}
-            >
-              Inquilino
-            </button>
-            <button
-              type="button"
-              onClick={() => setValue('tipo_usuario', 'propietario', { shouldValidate: true })}
-              className={`py-3 px-4 rounded-xl font-medium border-2 transition-all duration-200 flex justify-center items-center ${selectedTipo === 'propietario'
-                ? 'bg-black text-white border-black shadow-md'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                }`}
-            >
-              Propietario
-            </button>
-          </div>
-          {errors.tipo_usuario && (
-            <span className="text-red-500 text-xs font-medium block">{errors.tipo_usuario.message}</span>
-          )}
-        </div>
+      <Field label="Departamento" error={errors.departamento?.message}>
+        <select className={fieldClass} {...register("departamento")}>
+          <option value="" disabled>
+            Elige una opción
+          </option>
+          {DEPARTAMENTOS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-        {/* Department Dropdown */}
-        <div className="space-y-2">
-          <label htmlFor="departamento" className="text-sm font-semibold text-gray-700 block">
-            Departamento
-          </label>
-          <select
-            id="departamento"
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-black focus:border-transparent transition-all outline-none bg-white appearance-none"
-            {...register('departamento')}
-          >
-            <option value="" disabled>Selecciona una opción</option>
-            {DEPARTAMENTOS.map((dep) => (
-              <option key={dep} value={dep}>
-                {dep}
-              </option>
-            ))}
-          </select>
-          {errors.departamento && (
-            <span className="text-red-500 text-xs font-medium">{errors.departamento.message}</span>
-          )}
-        </div>
-
-        {/* Email Field */}
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-semibold text-gray-700 block">
-            Correo Electrónico (Obligatorio)
-          </label>
-          <input
-            id="email"
-            type="email"
-            placeholder="tu@correo.com"
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-black focus:border-transparent transition-all outline-none"
-            {...register('email')}
-          />
-          {errors.email && <span className="text-red-500 text-xs font-medium">{errors.email.message}</span>}
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-black hover:bg-gray-900 text-white font-semibold py-4 rounded-xl transition-all duration-200 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Procesando...
-            </>
-          ) : (
-            'Unirse ahora'
-          )}
-        </button>
-      </form>
-    </div>
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className={buttonClass("primary", "lg", "w-full")}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" /> Enviando…
+          </>
+        ) : (
+          <>
+            Unirse a la lista <ArrowRight className="size-4" />
+          </>
+        )}
+      </button>
+      <p className="text-[14px] leading-snug text-grafito-600">
+        Solo se usa para avisarte del lanzamiento. Puedes pedir la baja cuando quieras.
+      </p>
+    </form>
   );
 }
