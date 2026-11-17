@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -104,6 +104,14 @@ export const SCHEMA = [
   )`,
   `ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS origen TEXT NOT NULL DEFAULT 'organico'`,
   `ALTER TABLE waitlist ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()`,
+  // La tabla anterior guardaba la fecha en "fecha_registro": se conserva como fecha real.
+  `DO $$ BEGIN
+     IF EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'waitlist' AND column_name = 'fecha_registro') THEN
+       UPDATE waitlist SET created_at = fecha_registro
+        WHERE fecha_registro IS NOT NULL AND created_at > fecha_registro;
+     END IF;
+   END $$`,
 
   // Anuncios. Las columnas sueltas sirven para filtrar y moderar;
   // `data` guarda la ficha completa (plano, condiciones, precios por plazo).

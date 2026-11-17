@@ -429,7 +429,7 @@ export async function createInquiry(input: InquiryInput) {
 /* ——— Moderación ——— */
 
 export async function adminOverview() {
-  const [listings, inquiries, users, totals] = await Promise.all([
+  const [listings, inquiries, users, waitlist, totals] = await Promise.all([
     query(
       `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
               l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, u.email AS owner_email
@@ -445,6 +445,10 @@ export async function adminOverview() {
               (u.email_verified_at IS NOT NULL) AS verified,
               (SELECT count(*)::int FROM listings l WHERE l.user_id = u.id) AS listings
          FROM users u ORDER BY u.created_at DESC LIMIT 200`,
+    ),
+    query(
+      `SELECT nombre, email, whatsapp, tipo_usuario, departamento, origen, created_at
+         FROM waitlist ORDER BY created_at DESC LIMIT 500`,
     ),
     // Monitoreo: totales y actividad de los últimos 7 días. Del chat solo se cuenta, no se lee.
     query(
@@ -465,7 +469,7 @@ export async function adminOverview() {
         (SELECT count(*)::int FROM waitlist WHERE tipo_usuario = 'propietario') AS waitlist_owners`,
     ),
   ]);
-  return { listings, inquiries, users, totals: totals[0] };
+  return { listings, inquiries, users, waitlist, totals: totals[0] };
 }
 
 export async function setListingStatus(id: string, status: ListingStatus) {

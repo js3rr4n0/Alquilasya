@@ -39,14 +39,24 @@ type UserRow = {
   listings: number;
   created_at: string;
 };
+type WaitRow = {
+  nombre: string;
+  email: string;
+  whatsapp: string;
+  tipo_usuario: string;
+  departamento: string;
+  origen: string | null;
+  created_at: string;
+};
 type Overview = {
+  waitlist: WaitRow[];
   listings: ListingRow[];
   inquiries: InquiryRow[];
   users: UserRow[];
   totals: Record<string, number>;
   services: { correo: boolean; fotos: boolean };
 };
-type Tab = "resumen" | "anuncios" | "usuarios" | "mensajes";
+type Tab = "resumen" | "anuncios" | "usuarios" | "mensajes" | "espera";
 
 const TONE = { pendiente: "aviso", publicada: "exito", rechazada: "error", pausada: "neutral" } as const;
 const when = (iso: string) =>
@@ -115,6 +125,7 @@ export function Admin() {
           { value: "anuncios", label: `Anuncios${pending.length ? ` (${pending.length})` : ""}` },
           { value: "usuarios", label: "Usuarios" },
           { value: "mensajes", label: "Contactos" },
+          { value: "espera", label: `Lista de espera (${data.waitlist.length})` },
         ]}
       />
       {error && (
@@ -256,6 +267,31 @@ export function Admin() {
                   {q.nombre} · <span className="tabular-nums">{q.whatsapp}</span>
                 </p>
                 <p className="mt-1 max-w-[80ch] text-[15px] leading-relaxed text-grafito-700">{q.mensaje}</p>
+              </li>
+            ))}
+          </ul>
+        ))}
+
+      {tab === "espera" &&
+        (data.waitlist.length === 0 ? (
+          <p className="mt-8 text-[16px] text-grafito-600">Nadie en la lista de espera todavía.</p>
+        ) : (
+          <ul className="mt-8 divide-y divide-arena-200 rounded-card bg-crema-050 ring-1 ring-arena-200">
+            {data.waitlist.map((w) => (
+              <li key={w.email} className="flex flex-wrap items-center justify-between gap-3 p-5">
+                <div className="min-w-0">
+                  <p className="text-[16px] font-semibold">{w.nombre}</p>
+                  <p className="text-[14px] text-grafito-700">
+                    {w.email} · <span className="tabular-nums">{w.whatsapp}</span>
+                  </p>
+                  <p className="text-[14px] text-grafito-600">
+                    {w.departamento} · {when(w.created_at)}
+                    {w.origen && w.origen !== "organico" ? ` · vino de ${w.origen}` : ""}
+                  </p>
+                </div>
+                <Badge tone={w.tipo_usuario === "propietario" ? "info" : "neutral"}>
+                  {w.tipo_usuario === "propietario" ? "Tiene inmueble" : "Busca alquiler"}
+                </Badge>
               </li>
             ))}
           </ul>
