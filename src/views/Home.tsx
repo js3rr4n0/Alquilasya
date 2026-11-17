@@ -383,7 +383,7 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
               },
               {
                 t: "Escribe al propietario",
-                d: "Solo entonces dejas tu nombre y tu WhatsApp con tu pregunta. Sin registro y sin intermediarios.",
+                d: "Solo entonces le escribes, desde tu cuenta y por el chat privado del sitio. Sin intermediarios y sin compartir tu número.",
                 to: "/entrar?modo=crear",
                 cta: "Crear mi cuenta",
               },

@@ -326,22 +326,12 @@ export class InputError extends Error {}
 /* ——— Panel de quien publica ——— */
 
 export async function accountOverview(userId: string) {
-  const [listings, inquiries] = await Promise.all([
-    query(
-      `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at
-         FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
-      [userId],
-    ),
-    query(
-      `SELECT q.id, q.listing_id, q.listing_title, q.nombre, q.whatsapp, q.mensaje, q.plazo,
-              q.desde, q.created_at
-         FROM inquiries q JOIN listings l ON l.id = q.listing_id
-        WHERE l.user_id = $1
-        ORDER BY q.created_at DESC LIMIT 200`,
-      [userId],
-    ),
-  ]);
-  return { listings, inquiries };
+  const listings = await query(
+    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at
+       FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
+    [userId],
+  );
+  return { listings };
 }
 
 /** Quien publica puede pausar, reactivar (vuelve a revisión) o borrar su anuncio. */
@@ -364,65 +354,15 @@ export async function ownerAction(userId: string, id: string, action: "pausar" |
   return Boolean(rows[0]);
 }
 
-/* ——— Mensajes a quien publica ——— */
-
-export const inquiryInput = z.object({
-  listingId: text(120).min(1),
-  listingTitle: text(120).min(1),
-  nombre: text(80).min(2, "Escribe tu nombre"),
-  whatsapp: z.string().regex(/^\+?[0-9\s\-]{8,20}$/, "Número de WhatsApp inválido"),
-  mensaje: text(1500).min(5, "Escribe tu mensaje"),
-  plazo: z.enum(["dia", "semana", "mes", "seis", "anio"]).optional(),
-  desde: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-});
-
-export type InquiryInput = z.infer<typeof inquiryInput>;
-
-/**
- * Guarda el mensaje y, si el anuncio es real y está publicado, devuelve el
- * WhatsApp de quien publicó para seguir la conversación directamente.
- */
-export async function createInquiry(input: InquiryInput) {
-  const rows = await query<{ contact_name: string; contact_whatsapp: string; status: string }>(
-    "SELECT contact_name, contact_whatsapp, status FROM listings WHERE id = $1",
-    [input.listingId],
-  );
-  const row = rows[0];
-  if (!row || row.status !== "publicada") {
-    throw new InputError("Este anuncio ya no está disponible.");
-  }
-  await query(
-    `INSERT INTO inquiries (listing_id, listing_title, is_example, nombre, whatsapp, mensaje, plazo, desde)
-     VALUES ($1,$2,false,$3,$4,$5,$6,$7)`,
-    [
-      input.listingId,
-      input.listingTitle,
-      input.nombre,
-      input.whatsapp,
-      input.mensaje,
-      input.plazo ?? null,
-      input.desde ?? null,
-    ],
-  );
-  return { owner: { name: row.contact_name, whatsapp: row.contact_whatsapp } };
-}
-
 /* ——— Moderación ——— */
 
 export async function adminOverview() {
-  const [listings, inquiries, users, waitlist, totals] = await Promise.all([
+  const [listings, users, waitlist, totals] = await Promise.all([
     query(
       `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
               l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, u.email AS owner_email
          FROM listings l LEFT JOIN users u ON u.id = l.user_id
         ORDER BY l.created_at DESC LIMIT 200`,
-    ),
-    query(
-      `SELECT id, listing_id, listing_title, is_example, nombre, whatsapp, mensaje, plazo, desde, created_at
-         FROM inquiries ORDER BY created_at DESC LIMIT 100`,
     ),
     query(
       `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.created_at,
@@ -444,8 +384,6 @@ export async function adminOverview() {
         (SELECT count(*)::int FROM listings WHERE status = 'publicada') AS listings_published,
         (SELECT count(*)::int FROM listings WHERE status = 'pendiente') AS listings_pending,
         (SELECT count(*)::int FROM listings WHERE created_at > now() - interval '7 days') AS listings_week,
-        (SELECT count(*)::int FROM inquiries) AS inquiries,
-        (SELECT count(*)::int FROM inquiries WHERE created_at > now() - interval '7 days') AS inquiries_week,
         (SELECT count(*)::int FROM conversations) AS conversations,
         (SELECT count(*)::int FROM messages) AS messages,
         (SELECT count(*)::int FROM messages WHERE created_at > now() - interval '7 days') AS messages_week,
@@ -453,7 +391,7 @@ export async function adminOverview() {
         (SELECT count(*)::int FROM waitlist WHERE tipo_usuario = 'propietario') AS waitlist_owners`,
     ),
   ]);
-  return { listings, inquiries, users, waitlist, totals: totals[0] };
+  return { listings, users, waitlist, totals: totals[0] };
 }
 
 export async function setListingStatus(id: string, status: ListingStatus) {

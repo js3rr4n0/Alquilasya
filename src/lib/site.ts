@@ -35,6 +35,6 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "¿Cómo contacto al propietario?",
-    a: "Desde la ficha del anuncio, con el botón «Escribir al propietario». Dejas tu nombre, tu WhatsApp y tu mensaje, y sigues la conversación por WhatsApp. Para buscar y leer anuncios no hace falta registrarse.",
+    a: "Desde la ficha del anuncio, con el botón «Escribir al propietario». Necesitas una cuenta con el correo confirmado; la conversación ocurre en el chat privado del sitio y ninguno ve el número del otro. Para buscar y leer anuncios no hace falta registrarse.",
   },
 ];

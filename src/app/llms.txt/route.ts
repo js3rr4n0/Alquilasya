@@ -18,7 +18,7 @@ AlquilasYa es un portal de alquiler de viviendas en El Salvador (casas, apartame
 - Precio: buscar y publicar es gratis. No hay comisión para quien busca ni para quien alquila.
 - Pagos: AlquilasYa no recibe ni guarda dinero. El pago y el contrato se acuerdan directamente con el propietario.
 - Plazos de alquiler: por día, semana, mes, seis meses o un año, según lo que ofrezca cada propietario.
-- Contacto con el propietario: desde la ficha, por mensaje y WhatsApp. No hace falta registrarse para buscar.
+- Contacto con el propietario: por el chat privado del sitio, desde una cuenta con el correo confirmado. Para buscar y ver anuncios no hace falta registrarse.
 - Moderación: cada anuncio se revisa antes de publicarse.
 - Moneda: dólares estadounidenses (USD).
 

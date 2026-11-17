@@ -20,7 +20,7 @@ const STEPS = [
 const WHY = [
   ["Gratis, siempre", "No pagas por publicar ni comisión por alquilar. El pago lo acuerdas directamente con tu inquilino."],
   ["Menos preguntas repetidas", "El anuncio ya dice el precio total, el depósito, lo que incluye y las reglas. Te escribe quien ya lo leyó."],
-  ["Tú controlas tu contacto", "Tu WhatsApp no aparece en el anuncio. Te escriben por el chat del sitio; tu número solo lo recibe quien ya te envió un mensaje."],
+  ["Tú controlas tu contacto", "Tu WhatsApp no aparece en el anuncio ni se comparte. Te escriben personas con cuenta, por el chat privado del sitio."],
   ["Plazos a tu medida", "Alquila por día, semana, mes, seis meses o un año, cada uno con su precio."],
 ];
 

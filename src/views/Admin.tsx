@@ -21,14 +21,6 @@ type ListingRow = {
   edited_at: string | null;
   created_at: string;
 };
-type InquiryRow = {
-  id: string;
-  listing_title: string;
-  nombre: string;
-  whatsapp: string;
-  mensaje: string;
-  created_at: string;
-};
 type UserRow = {
   id: string;
   email: string;
@@ -50,12 +42,11 @@ type WaitRow = {
 type Overview = {
   waitlist: WaitRow[];
   listings: ListingRow[];
-  inquiries: InquiryRow[];
   users: UserRow[];
   totals: Record<string, number>;
   services: { correo: boolean; fotos: boolean };
 };
-type Tab = "resumen" | "anuncios" | "usuarios" | "mensajes" | "espera";
+type Tab = "resumen" | "anuncios" | "usuarios" | "espera";
 
 const TONE = { pendiente: "aviso", publicada: "exito", rechazada: "error", pausada: "neutral" } as const;
 const when = (iso: string) =>
@@ -123,7 +114,6 @@ export function Admin() {
           { value: "resumen", label: "Resumen" },
           { value: "anuncios", label: `Anuncios${pending.length ? ` (${pending.length})` : ""}` },
           { value: "usuarios", label: "Usuarios" },
-          { value: "mensajes", label: "Contactos" },
           { value: "espera", label: `Lista de espera (${data.waitlist.length})` },
         ]}
       />
@@ -140,7 +130,6 @@ export function Admin() {
               ["Por revisar", t.listings_pending, `${t.listings_published} publicados de ${t.listings}`],
               ["Usuarios", t.users, `${t.users_verified} verificados · +${t.users_week} esta semana`],
               ["Mensajes de chat", t.messages, `${t.conversations} conversaciones · +${t.messages_week} esta semana`],
-              ["Contactos por ficha", t.inquiries, `+${t.inquiries_week} esta semana`],
               ["Anuncios nuevos", t.listings_week, "en los últimos 7 días"],
               ["Lista de espera", t.waitlist, `${t.waitlist_owners} propietarios`],
             ].map(([label, value, hint]) => (
@@ -248,27 +237,6 @@ export function Admin() {
           ))}
         </ul>
       )}
-
-      {tab === "mensajes" &&
-        (data.inquiries.length === 0 ? (
-          <p className="mt-8 text-[16px] text-grafito-600">
-            Aún no hay contactos enviados desde las fichas sin cuenta.
-          </p>
-        ) : (
-          <ul className="mt-8 divide-y divide-arena-200 rounded-card bg-crema-050 ring-1 ring-arena-200">
-            {data.inquiries.map((q) => (
-              <li key={q.id} className="p-5">
-                <p className="text-[14px] text-grafito-600">
-                  {when(q.created_at)} · {q.listing_title}
-                </p>
-                <p className="mt-1 text-[16px] font-semibold">
-                  {q.nombre} · <span className="tabular-nums">{q.whatsapp}</span>
-                </p>
-                <p className="mt-1 max-w-[80ch] text-[15px] leading-relaxed text-grafito-700">{q.mensaje}</p>
-              </li>
-            ))}
-          </ul>
-        ))}
 
       {tab === "espera" &&
         (data.waitlist.length === 0 ? (

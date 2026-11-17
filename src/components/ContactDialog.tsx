@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Listing } from "../data/types";
 import { DURATION, type DurationKey } from "../lib/durations";
@@ -11,17 +11,10 @@ import { track } from "../lib/track";
 import { Button, buttonClass, Modal } from "./ui";
 import { fieldClass } from "./WaitlistForm";
 
-const KEY = "alquilasya.contacto";
-
-function waLink(whatsapp: string, text: string) {
-  let digits = whatsapp.replace(/\D/g, "");
-  if (digits.length === 8) digits = `503${digits}`; // número local de El Salvador
-  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
-}
-
-type Result = { owner: { name: string; whatsapp: string } | null };
-
-/** «Escribir al propietario»: guarda el mensaje y, si el anuncio es real, abre el WhatsApp. */
+/**
+ * «Escribir al propietario». Escribir exige una cuenta con el correo confirmado;
+ * la conversación ocurre en el chat privado del sitio y nadie ve el número de nadie.
+ */
 export function ContactDialog({
   open,
   onClose,
@@ -35,89 +28,39 @@ export function ContactDialog({
   duration: DurationKey;
   start: string;
 }) {
-  const { user } = useStore();
+  const { user, authLoaded } = useStore();
   const navigate = useNavigate();
-  // Con cuenta verificada y anuncio real, el mensaje va al chat privado del sitio.
-  const viaChat = Boolean(user?.verified) && listing.status === "publicada";
-  const [nombre, setNombre] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<Result | null>(null);
+  const here = `/casa/${encodeURIComponent(listing.id)}`;
+  const own = listing.isNew;
+  const available = listing.status === "publicada";
 
   useEffect(() => {
     if (!open) return;
-    setResult(null);
     setError("");
     setMensaje(
       `Hola. Me interesa ${listing.title} por ${DURATION[duration].label}, desde el ${dateShort(fromIsoDay(start))}. ¿Sigue disponible?`,
     );
-    let saved: Record<string, string> = {};
-    try {
-      saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<string, string>;
-    } catch {
-      /* sin datos guardados */
-    }
-    const name = saved.nombre || user?.name;
-    const phone = saved.whatsapp || user?.whatsapp;
-    if (name) setNombre(name);
-    if (phone) setWhatsapp(phone);
-  }, [open, listing.title, duration, start, user]);
+  }, [open, listing.title, duration, start]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    if (viaChat) {
-      if (mensaje.trim().length < 1) return setError("Escribe tu mensaje.");
-      setSending(true);
-      try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ listingId: listing.id, body: mensaje.trim() }),
-        });
-        const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
-        if (!res.ok || !data.id) throw new Error(data.error ?? "No pudimos enviar tu mensaje.");
-        track("mensaje_enviado", { via: "chat" });
-        onClose();
-        navigate(`/mensajes?c=${data.id}`);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "No pudimos enviar tu mensaje.");
-      } finally {
-        setSending(false);
-      }
-      return;
-    }
-    if (nombre.trim().length < 2) return setError("Escribe tu nombre.");
-    if (!/^\+?[0-9\s\-]{8,20}$/.test(whatsapp.trim()))
-      return setError("Escribe un número de WhatsApp válido.");
-    if (mensaje.trim().length < 5) return setError("Escribe tu mensaje.");
-
+    if (!mensaje.trim()) return setError("Escribe tu mensaje.");
     setSending(true);
+    setError("");
     try {
-      const res = await fetch("/api/inquiries", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId: listing.id,
-          listingTitle: listing.title,
-          nombre: nombre.trim(),
-          whatsapp: whatsapp.trim(),
-          mensaje: mensaje.trim(),
-          plazo: duration,
-          desde: start,
-        }),
+        body: JSON.stringify({ listingId: listing.id, body: mensaje.trim() }),
       });
-      const data = (await res.json().catch(() => ({}))) as Result & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "No pudimos enviar tu mensaje.");
-      try {
-        localStorage.setItem(KEY, JSON.stringify({ nombre: nombre.trim(), whatsapp: whatsapp.trim() }));
-      } catch {
-        /* no pasa nada si no se puede guardar */
-      }
-      track("mensaje_enviado", { via: "ficha" });
-      setResult({ owner: data.owner ?? null });
+      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!res.ok || !data.id) throw new Error(data.error ?? "No pudimos enviar tu mensaje.");
+      track("mensaje_enviado", { via: "chat" });
+      onClose();
+      navigate(`/mensajes?c=${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos enviar tu mensaje.");
     } finally {
@@ -125,123 +68,111 @@ export function ContactDialog({
     }
   }
 
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      label={`Escribir sobre ${listing.title}`}
-      title={result ? "Mensaje enviado" : "Escribir al propietario"}
-    >
-      {result ? (
-        <div className="p-6" role="status">
-          <span className="inline-flex size-11 items-center justify-center rounded-full bg-exito-bg text-exito">
-            <Check className="size-5" strokeWidth={2.2} />
-          </span>
-          {result.owner ? (
+  let body: React.ReactNode;
+  if (!authLoaded) {
+    body = <div className="h-40" aria-busy="true" />;
+  } else if (!user) {
+    body = (
+      <div className="p-6">
+        <span className="inline-flex size-11 items-center justify-center rounded-full bg-arena-200 text-negro">
+          <Lock className="size-5" />
+        </span>
+        <h3 className="head mt-4 text-[24px]">Entra para escribirle.</h3>
+        <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
+          Para cuidar a quien publica, los mensajes se envían desde una cuenta con el correo
+          confirmado. Hablan por el chat privado del sitio y nadie ve el número de nadie.
+        </p>
+        <div className="mt-5 flex flex-col gap-2.5">
+          <Link
+            to={`/entrar?modo=crear&next=${encodeURIComponent(here)}`}
+            className={buttonClass("primary", "lg", "w-full")}
+          >
+            Crear cuenta <ArrowRight className="size-4" />
+          </Link>
+          <Link to={`/entrar?next=${encodeURIComponent(here)}`} className={buttonClass("outline", "lg", "w-full")}>
+            Ya tengo cuenta
+          </Link>
+        </div>
+      </div>
+    );
+  } else if (!user.verified) {
+    body = (
+      <div className="p-6">
+        <h3 className="head text-[24px]">Confirma tu correo.</h3>
+        <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
+          Te enviamos un código a {user.email}. Confírmalo y vuelves aquí para escribir.
+        </p>
+        <Link
+          to={`/verificar?next=${encodeURIComponent(here)}`}
+          className={buttonClass("primary", "lg", "mt-5 w-full")}
+        >
+          Confirmar mi correo <ArrowRight className="size-4" />
+        </Link>
+      </div>
+    );
+  } else if (own) {
+    body = (
+      <div className="p-6">
+        <h3 className="head text-[24px]">Este anuncio es tuyo.</h3>
+        <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
+          Los mensajes que te envíen por él llegan a tu bandeja de Mensajes.
+        </p>
+        <Link to="/mensajes" className={buttonClass("ink", "lg", "mt-5 w-full")}>
+          Ir a Mensajes
+        </Link>
+      </div>
+    );
+  } else if (!available) {
+    body = (
+      <div className="p-6">
+        <h3 className="head text-[24px]">Este anuncio no está disponible.</h3>
+        <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
+          Solo se puede escribir sobre anuncios publicados.
+        </p>
+      </div>
+    );
+  } else {
+    body = (
+      <form onSubmit={submit} noValidate className="space-y-4 p-6">
+        <p className="text-[15px] leading-snug text-grafito-700">
+          {listing.title} · {listing.zone}
+        </p>
+        <label className="block">
+          <span className="text-[14px] font-medium text-grafito-700">Mensaje</span>
+          <textarea
+            rows={4}
+            value={mensaje}
+            maxLength={2000}
+            onChange={(e) => setMensaje(e.target.value)}
+            className={`${fieldClass} h-auto py-3 leading-relaxed`}
+          />
+        </label>
+        {error && (
+          <p role="alert" className="rounded-ctl bg-error-bg px-3.5 py-2.5 text-[15px] font-medium text-error">
+            {error}
+          </p>
+        )}
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={sending}>
+          {sending ? (
             <>
-              <h3 className="head mt-4 text-[24px]">Listo. Ahora sigue por WhatsApp.</h3>
-              <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
-                Guardamos tu mensaje. Para que {result.owner.name.split(" ")[0]} lo reciba de
-                inmediato, envíaselo también por WhatsApp.
-              </p>
-              <a
-                href={waLink(result.owner.whatsapp, mensaje)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonClass("primary", "lg", "mt-5 w-full")}
-              >
-                Abrir WhatsApp <ArrowRight className="size-4" />
-              </a>
+              <Loader2 className="size-4 animate-spin" /> Enviando…
             </>
           ) : (
             <>
-              <h3 className="head mt-4 text-[24px]">Recibimos tu mensaje.</h3>
-              <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
-                Este anuncio aún está en revisión. Te contactaremos por WhatsApp en cuanto esté
-                publicado.
-              </p>
+              Enviar mensaje <ArrowRight className="size-4" />
             </>
           )}
-          <Button variant="ghost" className="mt-2 w-full" onClick={onClose}>
-            Cerrar
-          </Button>
-        </div>
-      ) : (
-        <form onSubmit={submit} noValidate className="space-y-4 p-6">
-          <p className="text-[15px] leading-snug text-grafito-700">
-            {listing.title} · {listing.zone}
-          </p>
-          {!viaChat && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-[14px] font-medium text-grafito-700">Tu nombre</span>
-              <input
-                type="text"
-                autoComplete="name"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                className={fieldClass}
-              />
-            </label>
-            <label className="block">
-              <span className="text-[14px] font-medium text-grafito-700">Tu WhatsApp</span>
-              <input
-                type="tel"
-                autoComplete="tel"
-                placeholder="+503 7000 0000"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-                className={fieldClass}
-              />
-            </label>
-          </div>
-          )}
-          <label className="block">
-            <span className="text-[14px] font-medium text-grafito-700">Mensaje</span>
-            <textarea
-              rows={4}
-              value={mensaje}
-              onChange={(e) => setMensaje(e.target.value)}
-              className={`${fieldClass} h-auto py-3 leading-relaxed`}
-            />
-          </label>
-          {error && (
-            <p role="alert" className="rounded-ctl bg-error-bg px-3.5 py-2.5 text-[15px] font-medium text-error">
-              {error}
-            </p>
-          )}
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={sending}>
-            {sending ? (
-              <>
-                <Loader2 className="size-4 animate-spin" /> Enviando…
-              </>
-            ) : (
-              <>
-                Enviar mensaje <ArrowRight className="size-4" />
-              </>
-            )}
-          </Button>
-          <p className="text-[14px] leading-snug text-grafito-600">
-            {viaChat ? (
-              "Se abre un chat privado con el propietario dentro de AlquilasYa."
-            ) : (
-              <>
-                Tu nombre y tu WhatsApp solo se usan para responderte sobre este inmueble.
-                {!user && (
-                  <>
-                    {" "}
-                    ¿Prefieres chatear dentro del sitio?{" "}
-                    <Link to="/entrar" className="font-medium text-negro underline">
-                      Entra con tu cuenta
-                    </Link>
-                    .
-                  </>
-                )}
-              </>
-            )}
-          </p>
-        </form>
-      )}
+        </Button>
+        <p className="text-[14px] leading-snug text-grafito-600">
+          Se abre un chat privado con el propietario dentro de AlquilasYa.
+        </p>
+      </form>
+    );
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} label={`Escribir sobre ${listing.title}`} title="Escribir al propietario">
+      {body}
     </Modal>
   );
 }
