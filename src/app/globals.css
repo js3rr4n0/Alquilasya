@@ -368,3 +368,18 @@
   border-radius: 50%;
   background: var(--color-crema-100);
 }
+
+/* Grupo de anuncios en el mapa: número de alquileres en esa zona. */
+.map-cluster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-negro);
+  color: var(--color-crema-100);
+  border: 3px solid var(--color-crema-100);
+  box-shadow: 0 0 0 1px var(--color-negro);
+  font: 600 14px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}

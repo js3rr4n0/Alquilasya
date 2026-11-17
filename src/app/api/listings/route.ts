@@ -1,19 +1,30 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { currentUser } from "@/server/auth";
-import { invalid, noDatabase, rateLimited, tooMany } from "@/server/http";
-import { createListing, InputError, listingInput, listPublished } from "@/server/listings";
+import { invalid, noDatabase, rateLimited, refreshPublicPages, tooMany } from "@/server/http";
+import { createListing, InputError, listingInput } from "@/server/listings";
+import { searchListings, searchParams } from "@/server/search";
 
 export const dynamic = "force-dynamic";
 
-/** Anuncios publicados. Sin base conectada responde vacío, no error. */
-export async function GET() {
-  if (!hasDatabase()) return NextResponse.json({ listings: [], database: false });
+/**
+ * Búsqueda de anuncios publicados, paginada. Sin base conectada responde vacío.
+ * Ver los filtros en `src/server/search.ts`.
+ */
+export async function GET(request: Request) {
+  const raw = Object.fromEntries(new URL(request.url).searchParams);
+  const parsed = searchParams.safeParse(raw);
+  if (!parsed.success) return invalid(parsed.error);
+  const empty = { results: [], total: 0, page: 1, pages: 1, points: parsed.data.mapa === "1" ? [] : undefined };
+  if (!hasDatabase()) return NextResponse.json({ ...empty, database: false });
   try {
-    return NextResponse.json({ listings: await listPublished(), database: true });
+    return NextResponse.json(await searchListings(parsed.data), {
+      // La misma búsqueda se sirve desde la red de Vercel unos segundos.
+      headers: { "Cache-Control": "public, s-maxage=20, stale-while-revalidate=60" },
+    });
   } catch (error) {
     console.error("GET /api/listings", error);
-    return NextResponse.json({ listings: [], database: false });
+    return NextResponse.json({ ...empty, error: "No pudimos buscar ahora." }, { status: 500 });
   }
 }
 
@@ -48,6 +59,7 @@ export async function POST(request: Request) {
 
   try {
     const created = await createListing(parsed.data, user);
+    refreshPublicPages();
     return NextResponse.json({ ...created, status: "pendiente" }, { status: 201 });
   } catch (error) {
     if (error instanceof InputError) {

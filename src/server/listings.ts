@@ -141,17 +141,6 @@ function toListing(row: ListingRow): Listing {
   };
 }
 
-export async function listPublished(): Promise<Listing[]> {
-  const rows = await query<ListingRow>(
-    `SELECT id, status, data, contact_name, published_at, created_at
-       FROM listings
-      WHERE status = 'publicada'
-      ORDER BY published_at DESC NULLS LAST
-      LIMIT 200`,
-  );
-  return rows.map(toListing);
-}
-
 /** Publicados en un distrito o en todo un departamento (por nombre). */
 export async function listPublishedIn(place: { districtId?: number; department?: string }) {
   const rows = await query<ListingRow>(

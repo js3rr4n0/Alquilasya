@@ -9,7 +9,7 @@ import { ListingCard } from "../components/ListingCard";
 import { DateField, ZoneField } from "../components/SearchBar";
 import { Button, buttonClass, Container, Folio } from "../components/ui";
 import { CONDITION_FILTERS } from "../data/conditions";
-import type { ConditionKey, PropertyType } from "../data/types";
+import type { ConditionKey, ListingSummary, MapPoint, PropertyType } from "../data/types";
 import { DURATION, DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, money, plural } from "../lib/format";
 import { COUNTRY, parseZone, zoneLabel } from "../lib/geo";
@@ -24,7 +24,7 @@ const TYPES: PropertyType[] = ["Casa", "Apartamento", "Loft", "Cabaña", "Pentho
 type Sort = "recientes" | "menor" | "mayor";
 
 export function Explore() {
-  const { listings, duration, setDuration, zone, setZone, favorites } = useStore();
+  const { duration, setDuration, zone, setZone, favorites } = useStore();
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
@@ -49,44 +49,72 @@ export function Explore() {
   const toggleCond = (k: ConditionKey) =>
     setConds((list) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]));
 
-  const filtered = useMemo(() => {
-    const place = parseZone(zone);
-    const list = listings.filter((l) => {
-      if (place?.district && l.districtId !== place.district.id) return false;
-      if (place && !place.district && l.region !== place.department.name) return false;
-      if (onlyForDuration && !l.prices[duration]) return false;
-      if (type && l.type !== type) return false;
-      if (beds > 0 && l.bedrooms < beds) return false;
-      const price = l.prices[duration];
-      if (maxPrice > 0 && price && price > maxPrice) return false;
-      if (onlySaved && !favorites.includes(l.id)) return false;
-      for (const key of conds) {
-        const rule = CONDITION_FILTERS.find((f) => f.key === key);
-        const found = l.conditions.find((c) => c.key === key);
-        if (!rule || !found || !rule.accept.includes(found.status)) return false;
-      }
-      return true;
-    });
-    return [...list].sort((a, b) => {
-      const pa = a.prices[duration] ?? 999999;
-      const pb = b.prices[duration] ?? 999999;
-      if (sort === "menor") return pa - pb;
-      if (sort === "mayor") return pb - pa;
-      return b.publishedAt.localeCompare(a.publishedAt);
-    });
-  }, [
-    listings,
-    zone,
-    onlyForDuration,
-    duration,
-    type,
-    beds,
-    maxPrice,
-    onlySaved,
-    favorites,
-    conds,
-    sort,
-  ]);
+  // ——— Resultados: los pide al servidor, por páginas ———
+  const [results, setResults] = useState<ListingSummary[]>([]);
+  const [points, setPoints] = useState<MapPoint[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [status, setStatus] = useState<"cargando" | "listo" | "mas" | "error">("cargando");
+  const [anyPublished, setAnyPublished] = useState(true);
+
+  const query = useMemo(() => {
+    const q = new URLSearchParams({ plazo: duration, solo: onlyForDuration ? "1" : "0", orden: sort });
+    if (zone) q.set("zona", zone);
+    if (type) q.set("tipo", type);
+    if (beds > 0) q.set("cuartos", String(beds));
+    if (maxPrice > 0) q.set("tope", String(maxPrice));
+    if (conds.length) q.set("condiciones", conds.join(","));
+    if (onlySaved) q.set("ids", favorites.slice(0, 200).join(",") || "ninguna");
+    return q.toString();
+  }, [duration, onlyForDuration, sort, zone, type, beds, maxPrice, conds, onlySaved, favorites]);
+
+  // Primera página y puntos del mapa cada vez que cambia un filtro.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    setStatus("cargando");
+    const t = window.setTimeout(() => {
+      fetch(`/api/listings?${query}&mapa=1`, { signal: ctrl.signal })
+        .then((r) => r.json())
+        .then((d: { results: ListingSummary[]; points?: MapPoint[]; total: number; pages: number }) => {
+          setResults(d.results ?? []);
+          setPoints(d.points ?? []);
+          setTotal(d.total ?? 0);
+          setPages(d.pages ?? 1);
+          setPage(1);
+          setStatus("listo");
+        })
+        .catch((e) => e.name !== "AbortError" && setStatus("error"));
+    }, 150);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [query]);
+
+  // ¿Hay algo publicado en todo el sitio? Cambia el mensaje cuando no hay resultados.
+  useEffect(() => {
+    fetch("/api/listings?solo=0&limite=1")
+      .then((r) => r.json())
+      .then((d: { total?: number }) => setAnyPublished((d.total ?? 0) > 0))
+      .catch(() => {});
+  }, []);
+
+  async function loadMore() {
+    setStatus("mas");
+    try {
+      const d = (await (await fetch(`/api/listings?${query}&pagina=${page + 1}`)).json()) as {
+        results: ListingSummary[];
+      };
+      setResults((r) => [...r, ...(d.results ?? []).filter((x) => !r.some((y) => y.id === x.id))]);
+      setPage((n) => n + 1);
+      setStatus("listo");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  const filtered = results;
 
   const place = parseZone(zone);
   const focus = place?.district
@@ -94,7 +122,7 @@ export function Explore() {
     : place
       ? { lat: place.department.lat, lng: place.department.lng, zoom: 10 }
       : COUNTRY;
-  const empty = listings.length === 0;
+  const empty = !anyPublished;
 
   const activeFilterCount =
     conds.length +
@@ -355,7 +383,7 @@ export function Explore() {
         <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-[15px] text-grafito-700" aria-live="polite">
             <span className="font-semibold tabular-nums text-negro">
-              {plural(filtered.length, "propiedad", "propiedades")}
+              {status === "cargando" ? "Buscando…" : plural(total, "propiedad", "propiedades")}
             </span>
             {zone && ` en ${zoneLabel(zone)}`} · precios por{" "}
             <span className="font-medium text-negro">{DURATION[duration].label}</span>
@@ -368,7 +396,18 @@ export function Explore() {
           </p>
         </div>
 
-        {filtered.length === 0 ? (
+        {status === "cargando" && filtered.length === 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-[380px] animate-pulse rounded-card bg-arena-200" />
+            ))}
+          </div>
+        ) : status === "error" && filtered.length === 0 ? (
+          <div className="rounded-card bg-crema-050 px-6 py-14 text-center ring-1 ring-arena-200">
+            <h2 className="head text-[26px]">No pudimos cargar los resultados.</h2>
+            <p className="mt-2 text-[16px] text-grafito-600">Revisa tu conexión e intenta de nuevo.</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="grid items-start gap-8 lg:grid-cols-[1.22fr_0.78fr]">
             <div className="rounded-card bg-crema-050 px-6 py-14 text-center ring-1 ring-arena-200 sm:px-10">
               <h2 className="head text-balance text-[28px]">
@@ -417,7 +456,7 @@ export function Explore() {
         ) : view === "mapa" ? (
           <div className="map-warm h-[74vh] min-h-[480px] overflow-hidden rounded-card ring-1 ring-arena-200">
             <ExploreMap
-              listings={filtered}
+              listings={points}
               duration={duration}
               activeId={activeId}
               onActivate={setActiveId}
@@ -444,11 +483,21 @@ export function Explore() {
                   priority={i < 4}
                 />
               ))}
+              {page < pages && (
+                <div className="flex flex-col items-center gap-2 sm:col-span-2 lg:col-span-full">
+                  <Button variant="outline" size="lg" onClick={loadMore} disabled={status === "mas"}>
+                    {status === "mas" ? "Cargando…" : "Ver más alquileres"}
+                  </Button>
+                  <p className="text-[14px] text-grafito-600">
+                    Mostrando {filtered.length} de {total}
+                  </p>
+                </div>
+              )}
             </div>
             {view === "ambos" && (
               <div className="map-warm sticky top-[148px] hidden h-[calc(100dvh-180px)] min-h-[520px] overflow-hidden rounded-card ring-1 ring-arena-200 lg:block">
                 <ExploreMap
-                  listings={filtered}
+                  listings={points}
                   duration={duration}
                   activeId={activeId}
                   onActivate={setActiveId}

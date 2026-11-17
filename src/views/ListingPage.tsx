@@ -19,7 +19,7 @@ import {
   Folio,
   Modal,
 } from "../components/ui";
-import type { Listing } from "../data/types";
+import type { Listing, ListingSummary } from "../data/types";
 import {
   DURATION,
   DURATIONS,
@@ -36,7 +36,15 @@ import { useListing, useStore } from "../lib/store";
 export function ListingPage({ initial }: { initial?: Listing }) {
   const { id } = useParams();
   const { listing, loading } = useListing(id, initial);
-  const { listings, duration, setDuration, start, setStart } = useStore();
+  const { duration, setDuration, start, setStart } = useStore();
+  const [moreListings, setMoreListings] = useState<ListingSummary[]>([]);
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/listings?solo=0&limite=3&excluir=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d: { results?: ListingSummary[] }) => setMoreListings(d.results ?? []))
+      .catch(() => {});
+  }, [id]);
   const [contactOpen, setContactOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -117,7 +125,6 @@ export function ListingPage({ initial }: { initial?: Listing }) {
   const effectiveStart = startDate < minAvail ? minAvail : startDate;
   const end = endDate(effectiveStart, effectiveDuration);
   const conflict = overlapsBooked(effectiveStart, effectiveDuration, listing.booked);
-  const moreListings = listings.filter((l) => l.id !== listing.id).slice(0, 3);
 
   function share() {
     navigator.clipboard?.writeText(window.location.href);
