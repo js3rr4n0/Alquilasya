@@ -11,7 +11,7 @@ import { SearchBar } from "../components/SearchBar";
 import { ButtonLink, Container, Eyebrow, Folio, SectionTitle } from "../components/ui";
 import { DEMO_CONDITIONS, DEMO_PLAN, DEMO_PLAN_SMALL } from "../data/demo";
 import { GUIDES } from "../data/guides";
-import type { Listing } from "../data/types";
+import type { ListingSummary } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
 import { cx } from "../lib/format";
 import { departments } from "../lib/geo";
@@ -27,13 +27,11 @@ const USES: Record<DurationKey, string> = {
   anio: "Para instalarte. Suele ser el plazo con mejor precio por mes.",
 };
 
-export function Home({ initial = [] }: { initial?: Listing[] }) {
-  const store = useStore();
-  const { duration, setDuration } = store;
-  // Hasta que el navegador pide los anuncios, se usan los que llegaron en el HTML.
-  const loaded = store.loaded || initial.length > 0;
-  const listings = store.loaded ? store.listings : initial;
-  const featured = listings.slice(0, 4);
+export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
+  const { duration, setDuration } = useStore();
+  // Los más recientes llegan en el HTML desde el servidor (se renuevan cada pocos minutos).
+  const featured = initial.slice(0, 4);
+  const loaded = true;
 
   return (
     <div>

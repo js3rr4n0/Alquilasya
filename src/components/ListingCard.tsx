@@ -2,7 +2,7 @@
 
 import { Heart } from "lucide-react";
 import { Link } from "@/lib/router";
-import type { ConditionKey, Listing } from "../data/types";
+import type { ConditionKey, Listing, ListingSummary } from "../data/types";
 import { DURATION, priceSuffix, type DurationKey } from "../lib/durations";
 import { cx, m2, money } from "../lib/format";
 import { photoSrcSet, photoUrl } from "../lib/photos";
@@ -14,7 +14,7 @@ const CARD_FACTS: { key: ConditionKey; label: string }[] = [
   { key: "invitados", label: "Invitados" },
 ];
 
-export function roomsLabel(l: Listing) {
+export function roomsLabel(l: Pick<Listing, "bedrooms">) {
   return l.bedrooms === 0 ? "1 ambiente" : `${l.bedrooms} hab`;
 }
 
@@ -67,7 +67,7 @@ export function ListingCard({
   priority,
   className,
 }: {
-  listing: Listing;
+  listing: ListingSummary;
   duration: DurationKey;
   active?: boolean;
   onHover?: (id: string | null) => void;

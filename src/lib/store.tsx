@@ -5,8 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -54,10 +52,6 @@ function load(): Persisted {
 }
 
 type Store = Persisted & {
-  /** Anuncios publicados (vienen de la base de datos). */
-  listings: Listing[];
-  /** False hasta que se pidieron los anuncios al servidor. */
-  loaded: boolean;
   /** Cuenta con la que se entró, o null. `authLoaded` avisa cuándo ya se sabe. */
   user: Account | null;
   authLoaded: boolean;
@@ -76,14 +70,10 @@ type Store = Persisted & {
 
 const Ctx = createContext<Store | null>(null);
 
-const isPublic = (l: Listing) => !l.status || l.status === "publicada";
-
 export function StoreProvider({ children }: { children: ReactNode }) {
   // El servidor y el primer render comparten los valores por defecto; lo guardado llega al montar.
   const [state, setState] = useState<Persisted>(defaults);
   const [hydrated, setHydrated] = useState(false);
-  const [remote, setRemote] = useState<Listing[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState<Account | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -128,37 +118,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshMe]);
 
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/listings")
-      .then((r) => (r.ok ? r.json() : { listings: [] }))
-      .then((d: { listings?: Listing[] }) => {
-        if (!alive) return;
-        setRemote((current) => {
-          const fresh = d.listings ?? [];
-          const ids = new Set(fresh.map((l) => l.id));
-          return [...current.filter((l) => !ids.has(l.id)), ...fresh];
-        });
-      })
-      .catch(() => {})
-      .finally(() => alive && setLoaded(true));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const listings = useMemo(() => remote.filter(isPublic), [remote]);
-  const allRef = useRef<Listing[]>([]);
-  allRef.current = remote;
-
   const fetchListing = useCallback(async (id: string) => {
-    const known = allRef.current.find((l) => l.id === id);
-    if (known) return known;
     try {
       const res = await fetch(`/api/listings/${encodeURIComponent(id)}`);
       if (!res.ok) return null;
       const { listing } = (await res.json()) as { listing: Listing };
-      setRemote((current) => [listing, ...current.filter((l) => l.id !== listing.id)]);
       return listing;
     } catch {
       return null;
@@ -167,8 +131,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const store: Store = {
     ...state,
-    listings,
-    loaded,
     user,
     authLoaded,
     unread,
@@ -178,8 +140,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
       setUser(null);
       setUnread(0);
-      // Los anuncios en revisión que solo veía su dueño salen de la memoria.
-      setRemote((current) => current.filter(isPublic));
     },
     setDuration: (duration) => setState((s) => ({ ...s, duration })),
     setStart: (start) => setState((s) => ({ ...s, start })),
@@ -208,16 +168,15 @@ export function useStore() {
  * uno en revisión se pide al servidor, que solo lo entrega a su dueño.
  */
 export function useListing(id: string | undefined, initial?: Listing) {
-  const { listings, loaded, fetchListing } = useStore();
+  const { fetchListing, user } = useStore();
   const [fetched, setFetched] = useState<Listing | null>(null);
   const [missing, setMissing] = useState<string | null>(null);
-  const found =
-    listings.find((l) => l.id === id) ??
-    (fetched?.id === id ? fetched : undefined) ??
-    (initial?.id === id ? initial : undefined);
+  const found = (fetched?.id === id ? fetched : undefined) ?? (initial?.id === id ? initial : undefined);
 
+  // El servidor ya manda la ficha en el HTML; solo se pide aquí si no llegó
+  // (por ejemplo, un anuncio en revisión que se ve tras iniciar sesión).
   useEffect(() => {
-    if (!id || found || !loaded) return;
+    if (!id || found) return;
     let alive = true;
     fetchListing(id).then((l) => {
       if (!alive) return;
@@ -227,7 +186,7 @@ export function useListing(id: string | undefined, initial?: Listing) {
     return () => {
       alive = false;
     };
-  }, [id, found, loaded, fetchListing]);
+  }, [id, found, fetchListing, user?.id]);
 
   return { listing: found, loading: !found && missing !== id };
 }

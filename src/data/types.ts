@@ -136,3 +136,26 @@ export type Person = {
   languages: string[];
   bio: string;
 };
+
+/** Lo que necesita una tarjeta de resultados: sin plano ni textos largos. */
+export type ListingSummary = Pick<
+  Listing,
+  | "id"
+  | "title"
+  | "type"
+  | "zone"
+  | "region"
+  | "bedrooms"
+  | "bathrooms"
+  | "area"
+  | "lat"
+  | "lng"
+  | "cover"
+  | "prices"
+  | "conditions"
+  | "publishedAt"
+> &
+  Partial<Pick<Listing, "promoted" | "isNew">>;
+
+/** Un punto del mapa de resultados. `prices` solo trae el plazo buscado. */
+export type MapPoint = Pick<Listing, "id" | "title" | "lat" | "lng" | "prices">;

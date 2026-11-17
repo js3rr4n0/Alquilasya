@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -152,6 +152,9 @@ export const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS listings_user_idx ON listings (user_id)`,
   `CREATE INDEX IF NOT EXISTS listings_district_idx ON listings (district_id)`,
   `CREATE INDEX IF NOT EXISTS listings_status_idx ON listings (status, published_at DESC)`,
+  // Búsqueda: los publicados por distrito, tipo y cuartos.
+  `CREATE INDEX IF NOT EXISTS listings_public_district_idx ON listings (district_id, published_at DESC) WHERE status = 'publicada'`,
+  `CREATE INDEX IF NOT EXISTS listings_public_type_idx ON listings (type, bedrooms) WHERE status = 'publicada'`,
 
   // Mensajes de quien busca hacia quien publica.
   `CREATE TABLE IF NOT EXISTS inquiries (
