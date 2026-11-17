@@ -118,7 +118,15 @@ export function Account() {
             Hola, {user.name.split(" ")[0]}.
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {user.admin && (
+            <ButtonLink to="/admin" variant="outline">
+              Admin
+            </ButtonLink>
+          )}
+          <ButtonLink to="/mensajes" variant="outline">
+            Mensajes
+          </ButtonLink>
           <ButtonLink to="/publicar" variant="primary">
             <Plus className="size-4" /> Publicar una propiedad
           </ButtonLink>
@@ -134,6 +142,18 @@ export function Account() {
           </Button>
         </div>
       </div>
+
+      {!user.verified && (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-card bg-aviso-bg px-5 py-4 text-aviso">
+          <p className="text-[15px]">
+            <strong className="font-semibold">Falta confirmar tu correo.</strong> Hasta entonces no
+            puedes publicar ni chatear.
+          </p>
+          <ButtonLink to="/verificar?next=/cuenta" variant="ink" size="sm">
+            Confirmar ahora
+          </ButtonLink>
+        </div>
+      )}
 
       <div className="mt-12 grid items-start gap-12 lg:grid-cols-[1.5fr_0.9fr]">
         <div className="space-y-12">
@@ -196,11 +216,15 @@ export function Account() {
 
           <section aria-labelledby="mensajes-recibidos">
             <h2 id="mensajes-recibidos" className="head text-[26px]">
-              Mensajes recibidos.
+              Contactos sin cuenta.
             </h2>
+            <p className="mt-2 text-[14px] text-grafito-600">
+              Personas que te escribieron desde la ficha sin registrarse. El chat con quienes sí
+              tienen cuenta está en Mensajes.
+            </p>
             {inquiries.length === 0 ? (
               <p className="mt-3 text-[16px] text-grafito-600">
-                Cuando alguien te escriba desde tu ficha, su mensaje aparecerá aquí.
+                Aún no hay ninguno.
               </p>
             ) : (
               <ul className="mt-4 divide-y divide-arena-200 rounded-card bg-crema-050 ring-1 ring-arena-200">

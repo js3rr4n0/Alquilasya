@@ -25,6 +25,12 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Inicia sesión para publicar." }, { status: 401 });
   }
+  if (!user.verified) {
+    return NextResponse.json(
+      { error: "Confirma tu correo antes de publicar.", code: "sin_verificar" },
+      { status: 403 },
+    );
+  }
 
   const raw = await request.text();
   if (raw.length > 300_000) {

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { Listing } from "../data/types";
 import { DURATION, type DurationKey } from "../lib/durations";
 import { dateShort, fromIsoDay } from "../lib/format";
-import { Link } from "../lib/router";
+import { Link, useNavigate } from "../lib/router";
 import { useStore } from "../lib/store";
 import { Button, buttonClass, Modal } from "./ui";
 import { fieldClass } from "./WaitlistForm";
@@ -35,6 +35,9 @@ export function ContactDialog({
   start: string;
 }) {
   const { user } = useStore();
+  const navigate = useNavigate();
+  // Con cuenta verificada y anuncio real, el mensaje va al chat privado del sitio.
+  const viaChat = Boolean(user?.verified) && !listing.example && listing.status === "publicada";
   const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -64,6 +67,26 @@ export function ContactDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (viaChat) {
+      if (mensaje.trim().length < 1) return setError("Escribe tu mensaje.");
+      setSending(true);
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listingId: listing.id, body: mensaje.trim() }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+        if (!res.ok || !data.id) throw new Error(data.error ?? "No pudimos enviar tu mensaje.");
+        onClose();
+        navigate(`/mensajes?c=${data.id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "No pudimos enviar tu mensaje.");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     if (nombre.trim().length < 2) return setError("Escribe tu nombre.");
     if (!/^\+?[0-9\s\-]{8,20}$/.test(whatsapp.trim()))
       return setError("Escribe un número de WhatsApp válido.");
@@ -157,6 +180,7 @@ export function ContactDialog({
           <p className="text-[15px] leading-snug text-grafito-700">
             {listing.title} · {listing.zone}
           </p>
+          {!viaChat && (
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="text-[14px] font-medium text-grafito-700">Tu nombre</span>
@@ -180,6 +204,7 @@ export function ContactDialog({
               />
             </label>
           </div>
+          )}
           <label className="block">
             <span className="text-[14px] font-medium text-grafito-700">Mensaje</span>
             <textarea
@@ -206,7 +231,23 @@ export function ContactDialog({
             )}
           </Button>
           <p className="text-[14px] leading-snug text-grafito-600">
-            Tu nombre y tu WhatsApp solo se usan para responderte sobre este inmueble.
+            {viaChat ? (
+              "Se abre un chat privado con el propietario dentro de AlquilasYa."
+            ) : (
+              <>
+                Tu nombre y tu WhatsApp solo se usan para responderte sobre este inmueble.
+                {!listing.example && !user && (
+                  <>
+                    {" "}
+                    ¿Prefieres chatear dentro del sitio?{" "}
+                    <Link to="/entrar" className="font-medium text-negro underline">
+                      Entra con tu cuenta
+                    </Link>
+                    .
+                  </>
+                )}
+              </>
+            )}
           </p>
         </form>
       )}

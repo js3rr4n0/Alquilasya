@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "sonner";
 import { Shell } from "@/components/Shell";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -72,6 +74,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Saltar al contenido
         </a>
         <Shell>{children}</Shell>
+        {/* Métricas de Vercel: visitas y velocidad real. No usan cookies. */}
+        <Analytics />
+        <SpeedInsights />
         <Toaster
           position="top-center"
           toastOptions={{

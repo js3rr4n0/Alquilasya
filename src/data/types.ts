@@ -138,27 +138,3 @@ export type Person = {
   languages: string[];
   bio: string;
 };
-
-export type MessageKind = "text" | "expediente" | "system";
-
-export type Message = {
-  id: string;
-  from: "me" | "them" | "system";
-  kind: MessageKind;
-  text: string;
-  at: string;
-  /** Whether the sender was in reserved mode when it was sent. */
-  reserved?: boolean;
-};
-
-export type Conversation = {
-  id: string;
-  listingId: string;
-  ownerId: string;
-  reserved: boolean;
-  keyVerified: boolean;
-  disappearing: "Nunca" | "30 días" | "7 días" | "24 horas";
-  unread: number;
-  expedienteShared: boolean;
-  messages: Message[];
-};

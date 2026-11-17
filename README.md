@@ -13,11 +13,12 @@ Next.js 16 (App Router) · Tailwind CSS 4 · Postgres (Neon) · Vercel Blob.
 | `/explorar` | Resultados con filtros por departamento y distrito, y mapa |
 | `/alquiler/[zona]` | Página por departamento o distrito («Alquileres en Santa Tecla») |
 | `/casa/[id]` | Ficha: plano, condiciones, costos y «Escribir al propietario» |
-| `/entrar`, `/cuenta` | Cuenta con correo y contraseña; panel con mis anuncios y mensajes |
+| `/entrar`, `/verificar`, `/cuenta` | Cuenta con correo y contraseña, confirmada con un código de 6 dígitos; panel con mis anuncios |
+| `/mensajes` | Chat privado entre quien busca y quien publica |
 | `/publicar` | Formulario guiado (pide cuenta); el anuncio queda **en revisión** |
 | `/lista` | Lista de espera |
-| `/admin` | Moderación: publicar, pausar o rechazar anuncios; leer mensajes |
-| `/mensajes`, `/expediente` | Vistas de demostración (próximamente) |
+| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): moderación, usuarios y totales |
+| `/api/health` | Para un monitor externo: 200 si el sitio y la base responden |
 
 La base arranca **sin propiedades**. Las casas de ejemplo solo ilustran la
 portada; no aparecen en los resultados.
@@ -28,10 +29,14 @@ portada; no aparecen en los resultados.
    Crea sola la variable `DATABASE_URL`.
 2. (Opcional) **Storage → Blob** para que quien publica pueda subir sus fotos.
    Crea sola `BLOB_READ_WRITE_TOKEN`. Sin ella se usan fotos de muestra.
-3. En **Settings → Environment Variables** añade `ADMIN_TOKEN` (una clave larga
-   y única, mínimo 12 caracteres), `NEXT_PUBLIC_SITE_URL` y, cuando verifiques
-   el dominio en Search Console, `GOOGLE_SITE_VERIFICATION`.
-4. Vuelve a desplegar. Las tablas se crean solas durante el build
+3. **Correo**: crea una cuenta en Resend, verifica el dominio y añade
+   `RESEND_API_KEY` y `MAIL_FROM`. Sin esto nadie puede confirmar su cuenta.
+4. En **Settings → Environment Variables** añade `ADMIN_EMAILS` (tu correo),
+   `NEXT_PUBLIC_SITE_URL` y, cuando verifiques el dominio en Search Console,
+   `GOOGLE_SITE_VERIFICATION`.
+5. Activa **Analytics** y **Speed Insights** en el proyecto de Vercel: el
+   código ya está en el sitio.
+6. Vuelve a desplegar. Las tablas se crean solas durante el build
    (`scripts/migrate.mjs`) y, por si acaso, en el primer acceso a la base.
 
 Ver `.env.example` para la lista completa de variables.
@@ -42,8 +47,13 @@ El esquema está en `db/schema.mjs` y es idempotente:
 
 - `departments`, `municipalities`, `districts`: división territorial vigente
   (14, 44 y 262), cargada desde `db/geo.mjs` (fuente: GeoNames, CC BY 4.0).
-- `users`, `sessions`: cuentas. Contraseña con hash scrypt; la sesión es una
-  cookie `httpOnly` y en la base solo se guarda su hash.
+- `users`, `sessions`, `email_codes`: cuentas. Contraseña con hash scrypt; la
+  sesión es una cookie `httpOnly` y en la base solo se guarda su hash; los
+  códigos de correo vencen en 15 minutos y admiten 5 intentos.
+- `conversations`, `messages`: chat privado, una conversación por anuncio y
+  persona interesada.
+- `rate_events`: freno de intentos (entrar, códigos, chat) compartido entre
+  instancias.
 - `listings`: anuncios, ligados a su dueño y a su distrito, con el punto del
   mapa (`status`: pendiente, publicada, rechazada, pausada). La ficha completa
   va en la columna `data` (JSONB).
@@ -71,10 +81,17 @@ Sitemap, robots, datos estructurados, páginas por zona y `llms.txt` ya están
 en el sitio. Los pasos manuales, las palabras clave y el plan de anuncios
 están en [`docs/seo.md`](docs/seo.md).
 
-## Cuentas
+## Cuentas, chat y seguridad
 
-No hay recuperación de contraseña por correo todavía (haría falta un proveedor
-de envío). Mientras tanto se atiende a mano desde `hola@alquilasya.com`.
+- Buscar y leer no pide registro. Publicar y chatear piden cuenta con el
+  correo confirmado.
+- El chat se guarda en la base y solo lo leen sus dos participantes. No es
+  cifrado de extremo a extremo. La sala de admin cuenta mensajes, no los muestra.
+- Protecciones: hash scrypt, sesiones revocables, límite de intentos, rechazo
+  de peticiones de otro origen (`src/proxy.ts`), validación de toda entrada y
+  consultas parametrizadas.
+- Pendiente: política de contenido (CSP), bloqueo y reporte de usuarios en el
+  chat, y una auditoría externa antes de manejar pagos.
 
 ## Marca
 
