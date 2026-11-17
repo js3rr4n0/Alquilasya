@@ -387,14 +387,15 @@ export function Publish() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string; status?: string; reasons?: string[] };
       if (!res.ok || !data.id) {
         throw new Error(data.error ?? "No pudimos guardar tu anuncio. Intenta de nuevo.");
       }
       track(editing ? "anuncio_editado" : "anuncio_enviado", { tipo: type, zona: zoneName });
-      toast.success(
-        editing ? "Cambios guardados." : "Anuncio enviado. Lo revisamos antes de publicarlo.",
-      );
+      if (data.status === "publicada") toast.success(editing ? "Cambios guardados y publicados." : "¡Listo! Tu anuncio ya está publicado.");
+      else if (data.status === "pendiente" && data.reasons?.length)
+        toast.warning(`Tu anuncio quedó en revisión: ${data.reasons.join(" · ")}. Corrígelo con «Editar» y se publica solo.`, { duration: 12000 });
+      else toast.success("Cambios guardados.");
       navigate(`/casa/${data.id}`);
     } catch (error) {
       setProblems([error instanceof Error ? error.message : "No pudimos guardar tu anuncio."]);
@@ -986,7 +987,7 @@ export function Publish() {
                 <p className="mt-2 max-w-[56ch] text-[16px] leading-relaxed text-grafito-700">
                   {editing
                     ? "Al guardar, tu anuncio se actualiza con estos datos y conserva su estado."
-                    : "Al enviarlo lo revisamos antes de mostrarlo al público. Te avisamos por WhatsApp."}
+                    : "Al publicarlo sale al instante. Un filtro automático revisa que no tenga groserías, datos de contacto en el texto ni señales de estafa; si encuentra algo, queda en revisión y te decimos qué corregir."}
                 </p>
               </div>
             </div>
@@ -1064,7 +1065,7 @@ export function Publish() {
                 </>
               ) : (
                 <>
-                  {editing ? "Guardar cambios" : "Enviar a revisión"}{" "}
+                  {editing ? "Guardar cambios" : "Publicar ahora"}{" "}
                   <ArrowRight className="size-4" />
                 </>
               )}

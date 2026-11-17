@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CONDITION_ORDER } from "@/data/conditions";
 import type { Listing, ListingStatus } from "@/data/types";
 import { query } from "@/lib/db";
+import { reviewListing } from "./moderation";
 
 /* ——— Validación de lo que llega desde el formulario de publicar ——— */
 
@@ -250,12 +251,17 @@ async function prepare(input: ListingInput) {
     fields.lat,
     fields.lng,
   ];
-  return { data, columns, place, title: fields.title };
+  // Filtro automático sobre todo lo que escribió la persona (no sobre el contacto).
+  const review = reviewListing({ title: fields.title, text: fields, priceMonth: fields.prices.mes ?? null });
+  return { data, columns, place, title: fields.title, review };
 }
 
 export async function createListing(input: ListingInput, owner: { id: string; email: string }) {
-  const { data, columns, place, title } = await prepare(input);
+  const { data, columns, place, title, review } = await prepare(input);
   columns[11] ??= owner.email;
+  // Sin aprobación manual: lo limpio se publica ya; lo dudoso queda en revisión con su motivo.
+  const status: ListingStatus = review.ok ? "publicada" : "pendiente";
+  const reason = review.ok ? null : review.reasons.join(" · ");
   const base = slugify(`${title} ${place.district}`);
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -263,42 +269,54 @@ export async function createListing(input: ListingInput, owner: { id: string; em
     const rows = await query<{ id: string }>(
       `INSERT INTO listings
          (id, title, type, zone, region, bedrooms, bathrooms, area, price_month, deposit,
-          contact_name, contact_whatsapp, contact_email, plan, district_id, lat, lng, data, user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,$19)
+          contact_name, contact_whatsapp, contact_email, plan, district_id, lat, lng, data, user_id,
+          status, review_reason, published_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,$19,
+               $20, $21, CASE WHEN $20 = 'publicada' THEN now() END)
        ON CONFLICT (id) DO NOTHING
        RETURNING id`,
-      [id, ...columns, JSON.stringify({ ...data, id }), owner.id],
+      [id, ...columns, JSON.stringify({ ...data, id }), owner.id, status, reason],
     );
-    if (rows[0]) return { id: rows[0].id };
+    if (rows[0]) return { id: rows[0].id, status, reasons: review.reasons };
   }
   throw new Error("No se pudo generar un identificador para el anuncio.");
 }
 
 /**
- * Edición por su dueño o por el admin. Conserva la dirección (id) y el estado: un anuncio
- * publicado sigue publicado y queda marcado como editado para revisión posterior.
- * Uno rechazado vuelve a revisión.
+ * Edición por su dueño o por el admin. Conserva la dirección (id). El texto nuevo pasa
+ * otra vez por el filtro: si queda limpio, un anuncio en revisión se publica solo; si
+ * algo suena mal, uno publicado vuelve a revisión. Uno rechazado vuelve a revisión
+ * (lo rechazó una persona). Lo que edita el admin no pasa por el filtro.
  */
 export async function updateListing(
   id: string,
   input: ListingInput,
   editor: { id: string; email: string; admin?: boolean },
 ) {
-  const { data, columns } = await prepare(input);
-  const rows = await query<{ id: string; status: ListingStatus }>(
+  const { data, columns, review } = await prepare(input);
+  const clean = review.ok || Boolean(editor.admin);
+  const reason = clean ? null : review.reasons.join(" · ");
+  const rows = await query<{ id: string; status: ListingStatus; review_reason: string | null }>(
     `UPDATE listings SET
         title = $2, type = $3, zone = $4, region = $5, bedrooms = $6, bathrooms = $7, area = $8,
         price_month = $9, deposit = $10, contact_name = $11, contact_whatsapp = $12,
         contact_email = $13, plan = $14, district_id = $15, lat = $16, lng = $17,
         data = $18::jsonb,
-        status = CASE WHEN status = 'rechazada' THEN 'pendiente' ELSE status END,
+        status = CASE
+                   WHEN status = 'rechazada' THEN 'pendiente'
+                   WHEN status IN ('publicada', 'pendiente') AND $21 THEN 'publicada'
+                   WHEN status = 'publicada' THEN 'pendiente'
+                   ELSE status END,
+        published_at = CASE WHEN status = 'pendiente' AND $21 THEN COALESCE(published_at, now()) ELSE published_at END,
+        review_reason = CASE WHEN status = 'rechazada' THEN review_reason ELSE $22 END,
         edited_at = now(), updated_at = now()
       WHERE id = $1 AND (user_id = $19 OR $20)
-      RETURNING id, status`,
+      RETURNING id, status, review_reason`,
     // El admin puede corregir cualquier anuncio; el dueño sigue siendo el mismo.
-    [id, ...columns, JSON.stringify({ ...data, id }), editor.id, Boolean(editor.admin)],
+    [id, ...columns, JSON.stringify({ ...data, id }), editor.id, Boolean(editor.admin), clean, reason],
   );
-  return rows[0] ?? null;
+  const row = rows[0];
+  return row ? { id: row.id, status: row.status, reasons: clean ? [] : review.reasons } : null;
 }
 
 /** Lo que necesita el formulario para editar: la ficha y los datos de contacto. Solo para su dueño o el admin. */
@@ -329,7 +347,7 @@ export class InputError extends Error {}
 
 export async function accountOverview(userId: string) {
   const listings = await query(
-    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at, featured_until
+    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at, featured_until, review_reason
        FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
     [userId],
   );
@@ -341,7 +359,7 @@ export async function accountOverview(userId: string) {
   return { listings, payments };
 }
 
-/** Quien publica puede pausar, reactivar (vuelve a revisión) o borrar su anuncio. */
+/** Quien publica puede pausar, reactivar (vuelve a salir al instante) o borrar su anuncio. */
 export async function ownerAction(userId: string, id: string, action: "pausar" | "reactivar" | "borrar") {
   if (action === "borrar") {
     const rows = await query<{ id: string }>(
@@ -354,7 +372,8 @@ export async function ownerAction(userId: string, id: string, action: "pausar" |
     action === "pausar"
       ? `UPDATE listings SET status = 'pausada', updated_at = now()
           WHERE id = $1 AND user_id = $2 AND status = 'publicada' RETURNING id`
-      : `UPDATE listings SET status = 'pendiente', updated_at = now()
+      : `UPDATE listings SET status = CASE WHEN review_reason IS NULL THEN 'publicada' ELSE 'pendiente' END,
+                updated_at = now()
           WHERE id = $1 AND user_id = $2 AND status = 'pausada' RETURNING id`,
     [id, userId],
   );
@@ -367,7 +386,7 @@ export async function adminOverview() {
   const [listings, users, waitlist, totals] = await Promise.all([
     query(
       `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
-              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, l.featured_until, u.email AS owner_email
+              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, l.edited_at, l.featured_until, l.review_reason, u.email AS owner_email
          FROM listings l LEFT JOIN users u ON u.id = l.user_id
         ORDER BY l.created_at DESC LIMIT 200`,
     ),
@@ -406,7 +425,8 @@ export async function setListingStatus(id: string, status: ListingStatus) {
     `UPDATE listings
         SET status = $2,
             updated_at = now(),
-            published_at = CASE WHEN $2 = 'publicada' THEN COALESCE(published_at, now()) ELSE published_at END
+            published_at = CASE WHEN $2 = 'publicada' THEN COALESCE(published_at, now()) ELSE published_at END,
+            review_reason = CASE WHEN $2 = 'publicada' THEN NULL ELSE review_reason END
       WHERE id = $1
       RETURNING id`,
     [id, status],
@@ -425,6 +445,7 @@ export async function setFeatured(id: string, days: number) {
             SET featured_until = GREATEST(COALESCE(featured_until, now()), now()) + make_interval(days => $2),
                 status = CASE WHEN status = 'pendiente' THEN 'publicada' ELSE status END,
                 published_at = CASE WHEN status = 'pendiente' THEN COALESCE(published_at, now()) ELSE published_at END,
+                review_reason = CASE WHEN status = 'pendiente' THEN NULL ELSE review_reason END,
                 updated_at = now()
           WHERE id = $1 RETURNING id`
       : `UPDATE listings SET featured_until = NULL, updated_at = now() WHERE id = $1 AND $2 = 0 RETURNING id`,

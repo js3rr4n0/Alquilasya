@@ -260,7 +260,7 @@ export const GUIDES: Guide[] = [
     faq: [
       {
         q: "¿AlquilasYa revisa los anuncios?",
-        a: "Sí, cada anuncio se revisa antes de mostrarse al público y quien publica debe confirmar su correo. Eso reduce el riesgo, pero no reemplaza visitar el inmueble y verificar a la otra parte antes de pagar.",
+        a: "Sí. Cada anuncio pasa un filtro automático antes de mostrarse (lenguaje ofensivo, discriminación, contacto fuera del sitio y señales de estafa), lo dudoso lo revisa una persona y quien publica debe confirmar su correo. Eso reduce el riesgo, pero no reemplaza visitar el inmueble y verificar a la otra parte antes de pagar.",
       },
     ],
   },

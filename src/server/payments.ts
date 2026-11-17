@@ -42,12 +42,15 @@ export async function startPayment(user: { id: string; email: string }, listingI
   const plan = planById(planId);
   if (!plan) throw new AuthError("Ese plan no existe.", 400);
 
-  const [listing] = await query<{ id: string; title: string; status: string }>(
-    "SELECT id, title, status FROM listings WHERE id = $1 AND user_id = $2",
+  const [listing] = await query<{ id: string; title: string; status: string; review_reason: string | null }>(
+    "SELECT id, title, status, review_reason FROM listings WHERE id = $1 AND user_id = $2",
     [listingId, user.id],
   );
   if (!listing) throw new AuthError("No encontramos ese anuncio en tu cuenta.", 404);
-  // Pagar publica al instante: no hace falta esperar la revisión.
+  // Pagar no sirve para saltarse el filtro: lo marcado espera la revisión.
+  if (listing.status === "pendiente" && listing.review_reason) {
+    throw new AuthError("Tu anuncio tiene algo que corregir antes de destacarlo. Edítalo o espera nuestra revisión.", 409);
+  }
   if (listing.status !== "publicada" && listing.status !== "pendiente") {
     throw new AuthError("Este anuncio no se puede destacar ahora. Reactívalo o escríbenos.", 409);
   }

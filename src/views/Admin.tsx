@@ -22,6 +22,7 @@ type ListingRow = {
   owner_email: string | null;
   edited_at: string | null;
   featured_until: string | null;
+  review_reason: string | null;
   created_at: string;
 };
 type UserRow = {
@@ -135,7 +136,7 @@ export function Admin() {
         <>
           <dl className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              ["Por revisar", t.listings_pending, `${t.listings_published} publicados de ${t.listings}`],
+              ["Marcados por el filtro", t.listings_pending, `${t.listings_published} publicados de ${t.listings}`],
               ["Usuarios", t.users, `${t.users_verified} verificados · +${t.users_week} esta semana`],
               ["Mensajes de chat", t.messages, `${t.conversations} conversaciones · +${t.messages_week} esta semana`],
               ["Anuncios nuevos", t.listings_week, "en los últimos 7 días"],
@@ -191,6 +192,9 @@ export function Admin() {
                     {l.type} · {l.zone}, {l.region}
                     {l.price_month ? ` · $${Number(l.price_month)} / mes` : ""} · {when(l.created_at)}
                   </p>
+                  {l.review_reason && (
+                    <p className="mt-1 text-[14px] font-medium text-aviso">Filtro automático: {l.review_reason}</p>
+                  )}
                   <p className="mt-1 text-[14px] text-grafito-700">
                     {l.contact_name} · {l.contact_whatsapp}
                     {l.owner_email ? ` · ${l.owner_email}` : ""}

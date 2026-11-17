@@ -14,7 +14,7 @@ const STEPS = [
   ["Crea tu cuenta", "Con tu correo. Confirmas con un código y listo."],
   ["Llena el formulario guiado", "Datos, plano con medidas, fotos, las once condiciones, plazos y precios."],
   ["Marca la ubicación", "Eliges departamento y distrito y pones el punto en el mapa."],
-  ["Lo revisamos y sale al público", "Después puedes editarlo, pausarlo o borrarlo cuando quieras."],
+  ["Sale al público al instante", "Un filtro automático lo revisa en segundos. Después puedes editarlo, pausarlo o borrarlo cuando quieras."],
 ];
 
 const WHY = [
@@ -27,7 +27,7 @@ const WHY = [
 const FAQ = [
   ["¿Cuánto cuesta publicar?", "Nada. Publicar en AlquilasYa es gratis y no se cobra comisión por alquilar."],
   ["¿Qué necesito para publicar?", "Una cuenta con tu correo confirmado, los datos del inmueble, el precio por cada plazo que aceptes, el depósito y tus condiciones. Las fotos propias son recomendables."],
-  ["¿Cuánto tarda en aparecer mi anuncio?", "Cada anuncio se revisa antes de mostrarse al público. Mientras tanto lo ves en tu cuenta como «En revisión»."],
+  ["¿Cuánto tarda en aparecer mi anuncio?", "Nada: se publica al instante. Un filtro automático revisa que no tenga groserías, datos de contacto en el texto ni señales de estafa. Si encuentra algo, queda «En revisión» y en tu cuenta te decimos qué corregir."],
   ["¿Puedo cambiarlo después?", "Sí. Desde tu cuenta puedes editar, pausar, reactivar o borrar tu anuncio."],
   ["¿Quién cobra la renta?", "Tú. AlquilasYa no recibe ni guarda dinero: solo publica el anuncio y te pone en contacto con quien busca."],
 ];

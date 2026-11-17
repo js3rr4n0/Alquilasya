@@ -20,7 +20,7 @@ const SECTIONS = [
   {
     title: "Para qué los usamos",
     body: [
-      "Para avisarte del lanzamiento, revisar los anuncios antes de publicarlos y poner en contacto a quien busca con quien publica.",
+      "Para avisarte del lanzamiento, revisar los anuncios (con un filtro automático y, si marca algo, una persona) y poner en contacto a quien busca con quien publica.",
       "Tu WhatsApp como anunciante no se muestra en el anuncio ni a quien te escribe: lo usamos solo para avisarte sobre tu anuncio.",
       "Los mensajes del chat solo los ven sus dos participantes. No están cifrados de extremo a extremo: se guardan en nuestra base de datos y podemos revisarlos únicamente ante una denuncia o una obligación legal.",
       "No vendemos ni cedemos tus datos a terceros.",
@@ -39,7 +39,7 @@ const SECTIONS = [
       "Quien publica responde por que la información de su anuncio sea cierta y por tener derecho a alquilar el inmueble. Retiramos los anuncios falsos, engañosos o ilegales.",
       "Las casas marcadas como «Ejemplo» en la portada son ilustrativas: no corresponden a inmuebles disponibles.",
       "Antes de pagar o firmar, visita el inmueble y verifica a la otra parte.",
-      "Destacar un anuncio es opcional y se paga una sola vez con tarjeta en la página de Wompi (Banco Agrícola); AlquilasYa no ve ni guarda los datos de tu tarjeta. El anuncio destacado aparece primero en las búsquedas, con la etiqueta «Anuncio», durante los días del plan, contados desde que se confirma el pago. No se renueva solo. Al pagar, el anuncio se publica de inmediato, sin esperar la revisión; aun así lo revisamos, y si incumple estas reglas lo retiramos y el tiempo destacado no se devuelve. Si hubo un cobro por error, escríbenos a contacto@alquilasya.com.",
+      "Destacar un anuncio es opcional y se paga una sola vez con tarjeta en la página de Wompi (Banco Agrícola); AlquilasYa no ve ni guarda los datos de tu tarjeta. El anuncio destacado aparece primero en las búsquedas, con la etiqueta «Anuncio», durante los días del plan, contados desde que se confirma el pago. No se renueva solo. Si el anuncio incumple estas reglas lo retiramos y el tiempo destacado no se devuelve. Si hubo un cobro por error, escríbenos a contacto@alquilasya.com.",
     ],
   },
 ];
