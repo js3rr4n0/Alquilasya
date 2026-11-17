@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -68,6 +68,26 @@ export const SCHEMA = [
     expires_at  TIMESTAMPTZ NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ`,
+
+  // Códigos de un solo uso enviados por correo (verificar la cuenta o cambiar la contraseña).
+  `CREATE TABLE IF NOT EXISTS email_codes (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    purpose     TEXT NOT NULL CHECK (purpose IN ('verificar', 'restablecer')),
+    code_hash   TEXT NOT NULL,
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at  TIMESTAMPTZ NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS email_codes_user_idx ON email_codes (user_id, purpose)`,
+
+  // Freno de intentos que sobrevive entre instancias del servidor.
+  `CREATE TABLE IF NOT EXISTS rate_events (
+    key  TEXT NOT NULL,
+    at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS rate_events_key_idx ON rate_events (key, at)`,
 
   // Lista de espera (ya existía en producción; se respeta su forma).
   `CREATE TABLE IF NOT EXISTS waitlist (
@@ -135,6 +155,29 @@ export const SCHEMA = [
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS inquiries_listing_idx ON inquiries (listing_id, created_at DESC)`,
+
+  // Chat privado: una conversación por anuncio y persona interesada.
+  `CREATE TABLE IF NOT EXISTS conversations (
+    id               BIGSERIAL PRIMARY KEY,
+    listing_id       TEXT NOT NULL REFERENCES listings (id) ON DELETE CASCADE,
+    renter_id        BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    owner_id         BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_message_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    renter_read_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    owner_read_at    TIMESTAMPTZ NOT NULL DEFAULT 'epoch',
+    UNIQUE (listing_id, renter_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS conversations_renter_idx ON conversations (renter_id, last_message_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS conversations_owner_idx ON conversations (owner_id, last_message_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS messages (
+    id               BIGSERIAL PRIMARY KEY,
+    conversation_id  BIGINT NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+    sender_id        BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    body             TEXT NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS messages_conversation_idx ON messages (conversation_id, id)`,
 
   `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,

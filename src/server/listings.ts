@@ -373,24 +373,43 @@ export async function createInquiry(input: InquiryInput) {
 /* ——— Moderación ——— */
 
 export async function adminOverview() {
-  const [listings, inquiries, waitlist] = await Promise.all([
+  const [listings, inquiries, users, totals] = await Promise.all([
     query(
-      `SELECT id, status, title, type, zone, price_month, contact_name, contact_whatsapp,
-              contact_email, plan, created_at, published_at
-         FROM listings ORDER BY created_at DESC LIMIT 200`,
+      `SELECT l.id, l.status, l.title, l.type, l.zone, l.region, l.price_month, l.contact_name,
+              l.contact_whatsapp, l.contact_email, l.created_at, l.published_at, u.email AS owner_email
+         FROM listings l LEFT JOIN users u ON u.id = l.user_id
+        ORDER BY l.created_at DESC LIMIT 200`,
     ),
     query(
       `SELECT id, listing_id, listing_title, is_example, nombre, whatsapp, mensaje, plazo, desde, created_at
-         FROM inquiries ORDER BY created_at DESC LIMIT 200`,
+         FROM inquiries ORDER BY created_at DESC LIMIT 100`,
     ),
     query(
-      `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE tipo_usuario = 'propietario')::int AS propietarios,
-              COUNT(*) FILTER (WHERE tipo_usuario = 'inquilino')::int AS inquilinos
-         FROM waitlist`,
+      `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.created_at,
+              (u.email_verified_at IS NOT NULL) AS verified,
+              (SELECT count(*)::int FROM listings l WHERE l.user_id = u.id) AS listings
+         FROM users u ORDER BY u.created_at DESC LIMIT 200`,
+    ),
+    // Monitoreo: totales y actividad de los últimos 7 días. Del chat solo se cuenta, no se lee.
+    query(
+      `SELECT
+        (SELECT count(*)::int FROM users) AS users,
+        (SELECT count(*)::int FROM users WHERE email_verified_at IS NOT NULL) AS users_verified,
+        (SELECT count(*)::int FROM users WHERE created_at > now() - interval '7 days') AS users_week,
+        (SELECT count(*)::int FROM listings) AS listings,
+        (SELECT count(*)::int FROM listings WHERE status = 'publicada') AS listings_published,
+        (SELECT count(*)::int FROM listings WHERE status = 'pendiente') AS listings_pending,
+        (SELECT count(*)::int FROM listings WHERE created_at > now() - interval '7 days') AS listings_week,
+        (SELECT count(*)::int FROM inquiries) AS inquiries,
+        (SELECT count(*)::int FROM inquiries WHERE created_at > now() - interval '7 days') AS inquiries_week,
+        (SELECT count(*)::int FROM conversations) AS conversations,
+        (SELECT count(*)::int FROM messages) AS messages,
+        (SELECT count(*)::int FROM messages WHERE created_at > now() - interval '7 days') AS messages_week,
+        (SELECT count(*)::int FROM waitlist) AS waitlist,
+        (SELECT count(*)::int FROM waitlist WHERE tipo_usuario = 'propietario') AS waitlist_owners`,
     ),
   ]);
-  return { listings, inquiries, waitlist: waitlist[0] ?? { total: 0, propietarios: 0, inquilinos: 0 } };
+  return { listings, inquiries, users, totals: totals[0] };
 }
 
 export async function setListingStatus(id: string, status: ListingStatus) {

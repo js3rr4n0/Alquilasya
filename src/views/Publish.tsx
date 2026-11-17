@@ -355,6 +355,10 @@ export function Publish() {
     }
   }
 
+  useEffect(() => {
+    if (user && !user.verified) navigate("/verificar?next=/publicar", { replace: true });
+  }, [user, navigate]);
+
   if (authLoaded && !user) {
     return (
       <Container className="py-20 lg:py-28">
