@@ -6,6 +6,7 @@ import { Link, useParams } from "@/lib/router";
 import { Calendar, overlapsBooked } from "../components/Calendar";
 import { ConditionsLegend, ConditionsSheet } from "../components/ConditionsSheet";
 import { ContactDialog } from "../components/ContactDialog";
+import { ReportButton } from "../components/ReportDialog";
 import { DurationPicker } from "../components/DurationPicker";
 import { PlanExplorer } from "../components/FloorPlan";
 import { ListingCard, roomsLabel, SaveButton, spaceCount } from "../components/ListingCard";
@@ -568,6 +569,9 @@ export function ListingPage({ initial }: { initial?: Listing }) {
                   El pago y el contrato se acuerdan directamente con el propietario. AlquilasYa no
                   recibe ni guarda dinero.
                 </p>
+                {!listing.isNew && listing.status === "publicada" && (
+                  <ReportButton listingId={listing.id} className="mt-3" />
+                )}
               </div>
             </div>
           </aside>

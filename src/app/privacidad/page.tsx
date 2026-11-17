@@ -23,6 +23,8 @@ const SECTIONS = [
       "Para avisarte del lanzamiento, revisar los anuncios (con un filtro automático y, si marca algo, una persona) y poner en contacto a quien busca con quien publica.",
       "Tu WhatsApp como anunciante no se muestra en el anuncio ni a quien te escribe: lo usamos solo para avisarte sobre tu anuncio.",
       "Los mensajes del chat solo los ven sus dos participantes. No están cifrados de extremo a extremo: se guardan en nuestra base de datos y podemos revisarlos únicamente ante una denuncia o una obligación legal.",
+      "Te escribimos por correo cuando alguien te manda un mensaje, cuando tu destacado está por vencer y cuando tu anuncio necesita un cambio. Los dos primeros los puedes apagar en Mi cuenta.",
+      "Si reportas un anuncio, guardamos el motivo, lo que escribas y tu cuenta (o una huella irreversible de tu conexión si no tienes cuenta), para no contar dos veces el mismo reporte. Nunca le decimos al anunciante quién lo reportó.",
       "No vendemos ni cedemos tus datos a terceros.",
     ],
   },
@@ -36,7 +38,7 @@ const SECTIONS = [
     title: "Términos de uso",
     body: [
       "AlquilasYa publica anuncios y pone en contacto a las partes. No es parte del contrato de alquiler, no recibe ni custodia pagos y no garantiza el estado de los inmuebles.",
-      "Quien publica responde por que la información de su anuncio sea cierta y por tener derecho a alquilar el inmueble. Retiramos los anuncios falsos, engañosos o ilegales.",
+      "Quien publica responde por que la información de su anuncio sea cierta y por tener derecho a alquilar el inmueble. Retiramos los anuncios falsos, engañosos o ilegales. Si varias personas reportan un anuncio, lo ocultamos mientras lo revisamos.",
       "Las casas marcadas como «Ejemplo» en la portada son ilustrativas: no corresponden a inmuebles disponibles.",
       "Antes de pagar o firmar, visita el inmueble y verifica a la otra parte.",
       "Destacar un anuncio es opcional y se paga una sola vez con tarjeta en la página de Wompi (Banco Agrícola); AlquilasYa no ve ni guarda los datos de tu tarjeta. El anuncio destacado aparece primero en las búsquedas, con la etiqueta «Anuncio», durante los días del plan, contados desde que se confirma el pago. No se renueva solo. Si el anuncio incumple estas reglas lo retiramos y el tiempo destacado no se devuelve. Si hubo un cobro por error, escríbenos a contacto@alquilasya.com.",

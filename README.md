@@ -18,8 +18,9 @@ Next.js 16 (App Router) · Tailwind CSS 4 · Postgres (Neon) · Vercel Blob.
 | `/publicar` | Formulario guiado (pide cuenta); el anuncio queda **en revisión**. Con `?editar=` edita uno propio |
 | `/anunciar`, `/guias` | Aterrizaje para propietarios y guías para buscadores y asistentes de IA |
 | `/lista` | Lista de espera |
-| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): visitas (analítica propia con gráficas), pagos, moderación, usuarios y totales |
+| `/admin` | Sala de control (solo cuentas en `ADMIN_EMAILS`): visitas (analítica propia con gráficas), pagos, reportes de anuncios, moderación, usuarios y totales |
 | `/pago` | Vuelta desde Wompi: confirma el pago del destacado consultando el API |
+| `/api/cron/avisos` | Vercel Cron, una vez al día: avisa por correo los destacados que vencen en 2 días |
 | `/api/health` | Para un monitor externo: 200 si el sitio y la base responden |
 
 La base arranca **sin propiedades**. Las casas de ejemplo solo ilustran la

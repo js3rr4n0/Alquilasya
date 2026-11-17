@@ -28,6 +28,8 @@ export type User = {
   verified: boolean;
   /** Cuenta verificada cuyo correo está en ADMIN_EMAILS. */
   admin: boolean;
+  /** Acepta avisos por correo (mensajes nuevos, destacado por vencer…). */
+  notices: boolean;
 };
 
 type UserRow = {
@@ -36,9 +38,10 @@ type UserRow = {
   name: string;
   whatsapp: string | null;
   email_verified_at: string | null;
+  email_notices: boolean;
 };
 
-const USER_COLUMNS = "id::text AS id, email, name, whatsapp, email_verified_at";
+const USER_COLUMNS = "id::text AS id, email, name, whatsapp, email_verified_at, email_notices";
 
 function adminEmails() {
   return (process.env.ADMIN_EMAILS ?? "")
@@ -57,6 +60,7 @@ function toUser(row: UserRow): User {
     verified,
     // Sin verificar no hay admin: nadie se adelanta registrando el correo de otra persona.
     admin: verified && adminEmails().includes(row.email),
+    notices: row.email_notices !== false,
   };
 }
 
@@ -81,6 +85,7 @@ export const loginInput = z.object({
 export const profileInput = z.object({
   name: z.string().trim().min(2, "Escribe tu nombre").max(80),
   whatsapp: z.union([phone, z.literal("")]),
+  notices: z.boolean().optional(),
 });
 export const codeInput = z.object({ code });
 export const forgotInput = z.object({ email });
@@ -149,7 +154,7 @@ export async function currentUser(): Promise<User | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token || !hasDatabase()) return null;
   const rows = await query<UserRow>(
-    `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.email_verified_at
+    `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.email_verified_at, u.email_notices
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [digest(token)],
@@ -294,8 +299,9 @@ export async function resetPassword(input: z.infer<typeof resetInput>) {
 
 export async function updateProfile(userId: string, input: z.infer<typeof profileInput>) {
   const rows = await query<UserRow>(
-    `UPDATE users SET name = $2, whatsapp = $3 WHERE id = $1 RETURNING ${USER_COLUMNS}`,
-    [userId, input.name, input.whatsapp || null],
+    `UPDATE users SET name = $2, whatsapp = $3, email_notices = COALESCE($4, email_notices)
+      WHERE id = $1 RETURNING ${USER_COLUMNS}`,
+    [userId, input.name, input.whatsapp || null, input.notices ?? null],
   );
   return rows[0] ? toUser(rows[0]) : null;
 }

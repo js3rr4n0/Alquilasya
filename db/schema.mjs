@@ -8,7 +8,7 @@
 import { DEPARTMENTS, DISTRICTS, MUNICIPALITIES } from "./geo.mjs";
 
 /** Súbelo al cambiar el esquema: el servidor vuelve a aplicarlo una vez. */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
 const rows = (list, each) => list.map((item) => `(${each(item).join(", ")})`).join(",\n    ");
@@ -252,6 +252,24 @@ export const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS payments_created_idx ON payments (created_at DESC)`,
   // v10: publicación automática; si el filtro marca algo, aquí queda el motivo.
   `ALTER TABLE listings ADD COLUMN IF NOT EXISTS review_reason TEXT`,
+  // v11: avisos por correo y reportes de anuncios.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notices BOOLEAN NOT NULL DEFAULT true`,
+  `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS renter_notified_at TIMESTAMPTZ`,
+  `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS owner_notified_at TIMESTAMPTZ`,
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS featured_notice_for TIMESTAMPTZ`,
+  `CREATE TABLE IF NOT EXISTS reports (
+    id            BIGSERIAL PRIMARY KEY,
+    listing_id    TEXT NOT NULL REFERENCES listings (id) ON DELETE CASCADE,
+    user_id       BIGINT REFERENCES users (id) ON DELETE SET NULL,
+    reporter_key  TEXT NOT NULL,
+    reason        TEXT NOT NULL,
+    details       TEXT,
+    status        TEXT NOT NULL DEFAULT 'abierto' CHECK (status IN ('abierto', 'resuelto')),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at   TIMESTAMPTZ,
+    UNIQUE (listing_id, reporter_key)
+  )`,
+  `CREATE INDEX IF NOT EXISTS reports_open_idx ON reports (status, created_at DESC)`,
 
   `INSERT INTO schema_meta (id, version) VALUES (true, ${SCHEMA_VERSION})
    ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version`,

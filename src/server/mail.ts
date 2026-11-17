@@ -64,17 +64,88 @@ Vence en 15 minutos. Si no lo pediste, ignora este correo: nadie puede entrar a 
   return send(to, `${code} es tu código de AlquilasYa`, html, text);
 }
 
-export function sendNewMessageNotice(to: string, from: string, listingTitle: string) {
+const button = (url: string, label: string) =>
+  `<a href="${url}" style="display:inline-block;background:#a8410f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:4px;font-weight:600">${esc(label)}</a>`;
+
+/** Pie de los avisos que se pueden apagar. */
+const optOut = `<p style="margin:24px 0 0;font-size:13px;color:#6f6155">¿No quieres estos avisos? Apágalos en <a href="${SITE_URL}/cuenta" style="color:#6f6155">Mi cuenta</a>.</p>`;
+const optOutText = `\n\n¿No quieres estos avisos? Apágalos en ${SITE_URL}/cuenta`;
+
+const snippet = (text: string) => (text.length > 220 ? `${text.slice(0, 217).trimEnd()}…` : text);
+
+/** Mensaje nuevo en el chat. Se manda uno por racha: hasta que la persona lo lea, no hay otro. */
+export function sendNewMessageNotice(to: string, from: string, listingTitle: string, body?: string) {
   const url = `${SITE_URL}/mensajes`;
+  const quote = body
+    ? `<blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #d6ccbe;background:#f5f2eb;color:#3b3129">${esc(snippet(body)).replace(/\n/g, "<br>")}</blockquote>`
+    : "<br><br>";
   const html = layout(
     "Tienes un mensaje nuevo",
-    `${esc(from)} te escribió por <strong>${esc(listingTitle)}</strong>.<br><br>
-<a href="${url}" style="display:inline-block;background:#a8410f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:4px;font-weight:600">Leer y responder</a>`,
+    `${esc(from)} te escribió por <strong>${esc(listingTitle)}</strong>.${quote}${button(url, "Leer y responder")}${optOut}`,
   );
   return send(
     to,
-    `Mensaje nuevo por ${listingTitle}`,
+    `${from} te escribió por ${listingTitle}`,
     html,
-    `${from} te escribió por ${listingTitle}.\n\nLeer y responder: ${url}`,
+    `${from} te escribió por ${listingTitle}.${body ? `\n\n«${snippet(body)}»` : ""}\n\nLeer y responder: ${url}${optOutText}`,
   );
+}
+
+/** El filtro automático dejó el anuncio en revisión: qué corregir. Siempre se manda. */
+export function sendListingFlagged(to: string, listingTitle: string, listingId: string, reasons: string[]) {
+  const url = `${SITE_URL}/publicar?editar=${encodeURIComponent(listingId)}`;
+  const list = reasons.map((r) => `<li style="margin:4px 0">${esc(r)}</li>`).join("");
+  const html = layout(
+    "Tu anuncio necesita un cambio",
+    `<strong>${esc(listingTitle)}</strong> no se publicó todavía porque nuestro filtro automático encontró esto:
+<ul style="margin:12px 0;padding-left:20px">${list}</ul>
+Corrígelo y, al guardar, se publica solo. Si crees que es un error, responde a este correo y lo revisamos.<br><br>
+${button(url, "Corregir mi anuncio")}`,
+  );
+  return send(
+    to,
+    `Tu anuncio «${listingTitle}» necesita un cambio`,
+    html,
+    `${listingTitle} no se publicó todavía porque nuestro filtro encontró esto:\n- ${reasons.join("\n- ")}\n\nCorrígelo y se publica solo: ${url}`,
+  );
+}
+
+/** El destacado vence pronto. */
+export function sendFeaturedExpiring(to: string, listingTitle: string, until: Date) {
+  const url = `${SITE_URL}/cuenta`;
+  const when = new Intl.DateTimeFormat("es", { day: "numeric", month: "long", timeZone: "America/El_Salvador" }).format(until);
+  const html = layout(
+    "Tu destacado vence pronto",
+    `<strong>${esc(listingTitle)}</strong> deja de aparecer primero en las búsquedas el <strong>${when}</strong>. Después sigue publicado gratis como siempre.<br><br>
+Si quieres que siga arriba, puedes extenderlo desde tu cuenta; los días se suman.<br><br>${button(url, "Extender destacado")}${optOut}`,
+  );
+  return send(
+    to,
+    `Tu destacado de «${listingTitle}» vence el ${when}`,
+    html,
+    `${listingTitle} deja de aparecer primero el ${when}. Sigue publicado gratis.\n\nExtender: ${url}${optOutText}`,
+  );
+}
+
+/** Varias personas reportaron el anuncio y se ocultó mientras lo revisamos. Siempre se manda. */
+export function sendListingHiddenByReports(to: string, listingTitle: string) {
+  const html = layout(
+    "Ocultamos tu anuncio mientras lo revisamos",
+    `Varias personas reportaron <strong>${esc(listingTitle)}</strong>, así que lo ocultamos mientras lo revisamos. Si todo está en orden lo volvemos a publicar.<br><br>
+Si quieres contarnos algo, responde a este correo o escribe a contacto@alquilasya.com.`,
+  );
+  return send(to, `Ocultamos «${listingTitle}» mientras lo revisamos`, html,
+    `Varias personas reportaron ${listingTitle} y lo ocultamos mientras lo revisamos. Si quieres contarnos algo, escribe a contacto@alquilasya.com.`);
+}
+
+/** Aviso al admin: llegó un reporte. */
+export function sendReportToAdmin(to: string, r: { listingTitle: string; listingId: string; reason: string; details?: string | null; reporter: string; open: number; hidden: boolean }) {
+  const url = `${SITE_URL}/admin`;
+  const html = layout(
+    "Reportaron un anuncio",
+    `<strong>${esc(r.listingTitle)}</strong><br>Motivo: ${esc(r.reason)}${r.details ? `<br>Detalle: «${esc(r.details)}»` : ""}<br>De: ${esc(r.reporter)}<br>Reportes abiertos: ${r.open}${r.hidden ? "<br><strong>Se ocultó automáticamente.</strong>" : ""}<br><br>
+${button(`${SITE_URL}/casa/${encodeURIComponent(r.listingId)}`, "Ver anuncio")} &nbsp; <a href="${url}">Ir a Admin</a>`,
+  );
+  return send(to, `Reporte: ${r.listingTitle} (${r.reason})`, html,
+    `${r.listingTitle}\nMotivo: ${r.reason}${r.details ? `\nDetalle: ${r.details}` : ""}\nDe: ${r.reporter}\nReportes abiertos: ${r.open}${r.hidden ? "\nSe ocultó automáticamente." : ""}\n\n${url}`);
 }

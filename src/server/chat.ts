@@ -44,19 +44,31 @@ export async function startConversation(user: User, input: z.infer<typeof startI
   );
   const conversation = created[0];
   await insertMessage(conversation.id, user.id, input.body, "renter");
-
-  // Aviso por correo solo al abrir la conversación, para no llenar la bandeja.
-  if (conversation.fresh && mailConfigured()) {
-    const owners = await query<{ email: string }>("SELECT email FROM users WHERE id = $1", [
-      listing.user_id,
-    ]);
-    if (owners[0]) {
-      await sendNewMessageNotice(owners[0].email, user.name.split(" ")[0], listing.title).catch(
-        (error) => console.error("aviso de mensaje", error),
-      );
-    }
-  }
+  await notifyRecipient(conversation.id, "renter", user.name, input.body);
   return { id: conversation.id };
+}
+
+/**
+ * Avisa por correo a la otra persona. Un solo correo por racha: no se manda otro
+ * hasta que lea la conversación. Si la está mirando ahora mismo, no se manda.
+ */
+async function notifyRecipient(conversationId: string, from: "renter" | "owner", senderName: string, text: string) {
+  if (!mailConfigured()) return;
+  const to = from === "renter" ? "owner" : "renter";
+  try {
+    const rows = await query<{ email: string; title: string }>(
+      `UPDATE conversations c SET ${to}_notified_at = now()
+         FROM users u, listings l
+        WHERE c.id = $1 AND u.id = c.${to}_id AND l.id = c.listing_id AND u.email_notices
+          AND (c.${to}_notified_at IS NULL OR c.${to}_notified_at < c.${to}_read_at)
+          AND c.${to}_read_at < now() - interval '2 minutes'
+        RETURNING u.email, l.title`,
+      [conversationId],
+    );
+    if (rows[0]) await sendNewMessageNotice(rows[0].email, senderName.split(" ")[0], rows[0].title, text);
+  } catch (error) {
+    console.error("aviso de mensaje", error);
+  }
 }
 
 async function insertMessage(
@@ -97,6 +109,7 @@ export async function sendMessage(user: User, conversationId: string, text: stri
   const member = await membership(user.id, conversationId);
   await guard(user);
   await insertMessage(member.id, user.id, text, member.side);
+  await notifyRecipient(member.id, member.side, user.name, text);
 }
 
 /** Mis conversaciones, con el último mensaje y cuántos tengo sin leer. */

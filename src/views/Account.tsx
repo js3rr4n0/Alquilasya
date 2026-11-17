@@ -3,7 +3,7 @@
 import { ArrowRight, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, ButtonLink, Container } from "../components/ui";
+import { Badge, Button, ButtonLink, Container, Switch } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { PLANS, usd, type PlanId } from "../lib/plans";
 import { Link, useNavigate } from "../lib/router";
@@ -45,6 +45,7 @@ export function Account() {
   const [listings, setListings] = useState<ListingRow[] | null>(null);
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [notices, setNotices] = useState(true);
   const [busy, setBusy] = useState(false);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [featuring, setFeaturing] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export function Account() {
     if (user) {
       setName(user.name);
       setWhatsapp(user.whatsapp ?? "");
+      setNotices(user.notices !== false);
     }
   }, [user]);
 
@@ -108,7 +110,7 @@ export function Account() {
     const res = await fetch("/api/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), whatsapp: whatsapp.trim() }),
+      body: JSON.stringify({ name: name.trim(), whatsapp: whatsapp.trim(), notices }),
     });
     const data = (await res.json().catch(() => ({}))) as { user?: User; error?: string };
     if (res.ok && data.user) {
@@ -336,6 +338,12 @@ export function Account() {
               className={fieldClass}
             />
           </label>
+          <Switch
+            checked={notices}
+            onChange={setNotices}
+            label="Avisos por correo"
+            description="Cuando te escriben por el chat o tu destacado está por vencer. Los avisos sobre tu anuncio en revisión llegan siempre."
+          />
           <Button type="submit" variant="ink" className="w-full" disabled={busy}>
             Guardar
           </Button>

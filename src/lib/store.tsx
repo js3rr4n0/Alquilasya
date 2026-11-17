@@ -19,6 +19,7 @@ export type Account = {
   whatsapp: string | null;
   verified: boolean;
   admin: boolean;
+  notices?: boolean;
 };
 
 /** Preferencias de búsqueda y favoritos: viven en este navegador. */
