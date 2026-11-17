@@ -187,11 +187,15 @@ export function Admin() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {l.status === "publicada" && (
-                    <Link to={`/casa/${l.id}`} className="text-[14px] font-medium underline underline-offset-4">
-                      Ver ficha
-                    </Link>
-                  )}
+                  <Link
+                    to={`/publicar?editar=${encodeURIComponent(l.id)}`}
+                    className="text-[14px] font-medium underline underline-offset-4"
+                  >
+                    Editar
+                  </Link>
+                  <Link to={`/casa/${l.id}`} className="text-[14px] font-medium underline underline-offset-4">
+                    Ver ficha
+                  </Link>
                   {l.status !== "publicada" && (
                     <Button variant="primary" size="sm" disabled={busy} onClick={() => setStatus(l.id, "publicada")}>
                       Publicar

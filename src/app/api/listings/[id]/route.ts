@@ -27,10 +27,10 @@ export async function GET(request: Request, { params }: Context) {
   try {
     const user = await currentUser();
     if (new URL(request.url).searchParams.get("editar")) {
-      const own = user ? await getListingForEdit(id, user.id) : null;
+      const own = user ? await getListingForEdit(id, user.id, user.admin) : null;
       return own ? NextResponse.json(own) : notFound();
     }
-    const listing = await getListing(id, user?.id);
+    const listing = await getListing(id, user?.id, user?.admin);
     return listing ? NextResponse.json({ listing }) : notFound();
   } catch (error) {
     console.error("GET /api/listings/[id]", error);
