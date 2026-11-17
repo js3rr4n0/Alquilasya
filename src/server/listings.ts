@@ -8,11 +8,14 @@ import { query } from "@/lib/db";
 
 const text = (max: number) => z.string().trim().max(max);
 
-/** Clave de foto de muestra, id de Unsplash o URL https (subida a Blob). */
+/** Solo fotos subidas por quien publica (Vercel Blob). No se aceptan fotos de muestra. */
 const photo = z
   .string()
   .max(600)
-  .refine((v) => /^[A-Za-z0-9_-]{1,80}$/.test(v) || /^https:\/\/[^\s]+$/.test(v), "Foto inválida");
+  .refine(
+    (v) => /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/[^\s]+$/i.test(v),
+    "Usa fotos subidas desde tu dispositivo",
+  );
 
 const ROOM_TYPES = [
   "sala",
@@ -64,7 +67,7 @@ export const listingInput = z.object({
   colonia: text(80).optional(),
   lat: z.number().min(12.9).max(14.6),
   lng: z.number().min(-90.3).max(-87.5),
-  cover: photo,
+  cover: z.union([photo, z.literal("")]),
   summary: text(200).min(10, "Describe la propiedad en una frase"),
   description: text(3000),
   prices: z
@@ -377,7 +380,6 @@ export async function ownerAction(userId: string, id: string, action: "pausar" |
 export const inquiryInput = z.object({
   listingId: text(120).min(1),
   listingTitle: text(120).min(1),
-  example: z.boolean().default(false),
   nombre: text(80).min(2, "Escribe tu nombre"),
   whatsapp: z.string().regex(/^\+?[0-9\s\-]{8,20}$/, "Número de WhatsApp inválido"),
   mensaje: text(1500).min(5, "Escribe tu mensaje"),
@@ -395,27 +397,20 @@ export type InquiryInput = z.infer<typeof inquiryInput>;
  * WhatsApp de quien publicó para seguir la conversación directamente.
  */
 export async function createInquiry(input: InquiryInput) {
-  let owner: { name: string; whatsapp: string } | null = null;
-  let example = input.example;
-
-  if (!example) {
-    const rows = await query<{ contact_name: string; contact_whatsapp: string; status: string }>(
-      `SELECT contact_name, contact_whatsapp, status FROM listings WHERE id = $1`,
-      [input.listingId],
-    );
-    const row = rows[0];
-    if (!row) example = true;
-    else if (row.status === "publicada")
-      owner = { name: row.contact_name, whatsapp: row.contact_whatsapp };
+  const rows = await query<{ contact_name: string; contact_whatsapp: string; status: string }>(
+    "SELECT contact_name, contact_whatsapp, status FROM listings WHERE id = $1",
+    [input.listingId],
+  );
+  const row = rows[0];
+  if (!row || row.status !== "publicada") {
+    throw new InputError("Este anuncio ya no está disponible.");
   }
-
   await query(
     `INSERT INTO inquiries (listing_id, listing_title, is_example, nombre, whatsapp, mensaje, plazo, desde)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+     VALUES ($1,$2,false,$3,$4,$5,$6,$7)`,
     [
       input.listingId,
       input.listingTitle,
-      example,
       input.nombre,
       input.whatsapp,
       input.mensaje,
@@ -423,7 +418,7 @@ export async function createInquiry(input: InquiryInput) {
       input.desde ?? null,
     ],
   );
-  return { owner };
+  return { owner: { name: row.contact_name, whatsapp: row.contact_whatsapp } };
 }
 
 /* ——— Moderación ——— */

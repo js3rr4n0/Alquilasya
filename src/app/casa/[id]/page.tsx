@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/components/JsonLd";
-import { LISTINGS } from "@/data/listings";
 import type { Listing } from "@/data/types";
 import { hasDatabase } from "@/lib/db";
 import { photoUrl } from "@/lib/photos";
@@ -16,8 +15,6 @@ type Props = { params: Promise<{ id: string }> };
 /** La ficha tal como la puede ver quien la pide: publicada, o propia si aún está en revisión. */
 const load = cache(async (rawId: string): Promise<Listing | null> => {
   const id = decodeURIComponent(rawId);
-  const example = LISTINGS.find((l) => l.id === id);
-  if (example) return { ...example, example: true };
   if (!hasDatabase()) return null;
   try {
     const user = await currentUser();
@@ -55,13 +52,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${l.type} en alquiler en ${place}${price ? ` · ${price}` : ""}`;
   const rooms = l.bedrooms ? `${l.bedrooms} ${l.bedrooms === 1 ? "habitación" : "habitaciones"}` : "1 ambiente";
   const description = `${l.title}: ${rooms}, ${l.bathrooms} ${l.bathrooms === 1 ? "baño" : "baños"}, ${l.area} m². ${l.summary} Depósito de $${l.deposit}. Sin comisión.`;
-  const indexable = !l.example && l.status === "publicada";
+  const indexable = l.status === "publicada";
 
   return {
     title,
     description: description.slice(0, 300),
     alternates: { canonical: `/casa/${l.id}` },
-    // Los ejemplos y los anuncios en revisión no se indexan.
+    // Los anuncios en revisión no se indexan.
     robots: indexable ? undefined : { index: false, follow: true },
     openGraph: {
       title,
@@ -78,7 +75,7 @@ export default async function Page({ params }: Props) {
   const l = await load(id);
   if (!l) notFound();
 
-  const published = !l.example && l.status === "publicada";
+  const published = l.status === "publicada";
   const monthly = l.prices.mes ?? l.prices.seis ?? l.prices.anio;
 
   return (

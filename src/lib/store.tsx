@@ -10,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { LISTINGS } from "../data/listings";
 import type { Listing } from "../data/types";
 import type { DurationKey } from "./durations";
 import { isoDay } from "./format";
@@ -35,8 +34,6 @@ type Persisted = {
 
 const KEY = "alquilasya.v4";
 
-const EXAMPLES: Listing[] = LISTINGS.map((l) => ({ ...l, example: true }));
-
 function firstOfNextMonth() {
   const d = new Date();
   return isoDay(new Date(d.getFullYear(), d.getMonth() + 1, 1));
@@ -59,8 +56,6 @@ function load(): Persisted {
 type Store = Persisted & {
   /** Anuncios publicados (vienen de la base de datos). */
   listings: Listing[];
-  /** Casas ilustrativas para explicar el producto; nunca se mezclan con los resultados. */
-  examples: Listing[];
   /** False hasta que se pidieron los anuncios al servidor. */
   loaded: boolean;
   /** Cuenta con la que se entró, o null. `authLoaded` avisa cuándo ya se sabe. */
@@ -154,7 +149,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const listings = useMemo(() => remote.filter(isPublic), [remote]);
   const allRef = useRef<Listing[]>([]);
-  allRef.current = [...remote, ...EXAMPLES];
+  allRef.current = remote;
 
   const fetchListing = useCallback(async (id: string) => {
     const known = allRef.current.find((l) => l.id === id);
@@ -173,7 +168,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const store: Store = {
     ...state,
     listings,
-    examples: EXAMPLES,
     loaded,
     user,
     authLoaded,
@@ -210,16 +204,15 @@ export function useStore() {
 }
 
 /**
- * Un anuncio por id. Los publicados y los ejemplos se resuelven al instante;
+ * Un anuncio por id. Los publicados se resuelven al instante;
  * uno en revisión se pide al servidor, que solo lo entrega a su dueño.
  */
 export function useListing(id: string | undefined, initial?: Listing) {
-  const { listings, examples, loaded, fetchListing } = useStore();
+  const { listings, loaded, fetchListing } = useStore();
   const [fetched, setFetched] = useState<Listing | null>(null);
   const [missing, setMissing] = useState<string | null>(null);
   const found =
     listings.find((l) => l.id === id) ??
-    examples.find((l) => l.id === id) ??
     (fetched?.id === id ? fetched : undefined) ??
     (initial?.id === id ? initial : undefined);
 

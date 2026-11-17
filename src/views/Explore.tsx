@@ -72,11 +72,7 @@ export function Explore() {
       const pb = b.prices[duration] ?? 999999;
       if (sort === "menor") return pa - pb;
       if (sort === "mayor") return pb - pa;
-      // Real listings first, examples after; newest first within each group.
-      return (
-        Number(Boolean(a.example)) - Number(Boolean(b.example)) ||
-        b.publishedAt.localeCompare(a.publishedAt)
-      );
+      return b.publishedAt.localeCompare(a.publishedAt);
     });
   }, [
     listings,

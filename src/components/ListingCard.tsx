@@ -135,14 +135,6 @@ export function ListingCard({
                 Anuncio
               </span>
             )}
-            {listing.example && (
-              <span
-                className="label-sm rounded-[3px] border border-piedra-250 px-1.5 py-[3px] text-grafito-600"
-                title="Anuncio ilustrativo: no corresponde a un inmueble disponible."
-              >
-                Ejemplo
-              </span>
-            )}
             {listing.isNew && (
               <span className="label-sm rounded-[3px] bg-negro px-1.5 py-[3px] text-crema-100">
                 Tuyo

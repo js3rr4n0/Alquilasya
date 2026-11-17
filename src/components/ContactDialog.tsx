@@ -38,7 +38,7 @@ export function ContactDialog({
   const { user } = useStore();
   const navigate = useNavigate();
   // Con cuenta verificada y anuncio real, el mensaje va al chat privado del sitio.
-  const viaChat = Boolean(user?.verified) && !listing.example && listing.status === "publicada";
+  const viaChat = Boolean(user?.verified) && listing.status === "publicada";
   const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -102,7 +102,6 @@ export function ContactDialog({
         body: JSON.stringify({
           listingId: listing.id,
           listingTitle: listing.title,
-          example: Boolean(listing.example),
           nombre: nombre.trim(),
           whatsapp: whatsapp.trim(),
           mensaje: mensaje.trim(),
@@ -117,7 +116,7 @@ export function ContactDialog({
       } catch {
         /* no pasa nada si no se puede guardar */
       }
-      if (!listing.example) track("mensaje_enviado", { via: "ficha" });
+      track("mensaje_enviado", { via: "ficha" });
       setResult({ owner: data.owner ?? null });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos enviar tu mensaje.");
@@ -153,17 +152,6 @@ export function ContactDialog({
               >
                 Abrir WhatsApp <ArrowRight className="size-4" />
               </a>
-            </>
-          ) : listing.example ? (
-            <>
-              <h3 className="head mt-4 text-[24px]">Recibimos tu mensaje.</h3>
-              <p className="mt-2 text-[16px] leading-relaxed text-grafito-700">
-                Este anuncio es un ejemplo ilustrativo: todavía no hay un propietario detrás. Tomamos
-                nota de lo que buscas para avisarte cuando haya inmuebles reales así.
-              </p>
-              <Link to="/lista" className={buttonClass("ink", "lg", "mt-5 w-full")}>
-                Unirme a la lista de espera <ArrowRight className="size-4" />
-              </Link>
             </>
           ) : (
             <>
@@ -239,7 +227,7 @@ export function ContactDialog({
             ) : (
               <>
                 Tu nombre y tu WhatsApp solo se usan para responderte sobre este inmueble.
-                {!listing.example && !user && (
+                {!user && (
                   <>
                     {" "}
                     ¿Prefieres chatear dentro del sitio?{" "}

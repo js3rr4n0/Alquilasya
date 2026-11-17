@@ -39,14 +39,6 @@ const STEPS: { key: StepKey; n: string; label: string }[] = [
 ];
 
 const TYPES: PropertyType[] = ["Casa", "Apartamento", "Loft", "Cabaña", "Penthouse", "Estudio"];
-const COVERS = [
-  "laderaAgave",
-  "casaPiscinaPatio",
-  "patioVoladizo",
-  "entradaPiedra",
-  "edificioBalcones",
-  "fachadaColonial",
-];
 
 const LocationPicker = dynamic(() => import("../components/LocationPicker"), {
   ssr: false,
@@ -199,7 +191,7 @@ export function Publish() {
   const [districtId, setDistrictId] = useState(0);
   const [colonia, setColonia] = useState("");
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
-  const [cover, setCover] = useState("laderaAgave");
+  const [cover, setCover] = useState("");
   const [coverBusy, setCoverBusy] = useState(false);
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
@@ -359,7 +351,7 @@ export function Publish() {
       colonia: colonia.trim() || undefined,
       lat: at.lat,
       lng: at.lng,
-      cover: clean(cover) ? cover : "entradaPiedra",
+      cover: clean(cover) ? cover : "",
       summary: summary.trim(),
       description: description.trim(),
       prices,
@@ -415,29 +407,15 @@ export function Publish() {
     if (user && !user.verified) navigate("/verificar?next=/publicar", { replace: true });
   }, [user, navigate]);
 
-  if (authLoaded && !user) {
-    return (
-      <Container className="py-20 lg:py-28">
-        <div className="mx-auto max-w-[560px] text-center">
-          <p className="label text-terracota-700">Publicar una propiedad</p>
-          <h1 className="serif mt-4 text-[44px] leading-[0.98] sm:text-[56px]">
-            Primero, tu cuenta.
-          </h1>
-          <p className="mt-4 text-[17px] leading-relaxed text-grafito-700">
-            Publicar es gratis. La cuenta sirve para que puedas pausar o borrar tu anuncio y leer
-            los mensajes que te lleguen.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/entrar?modo=crear&next=/publicar" className={buttonClass("primary", "lg")}>
-              Crear cuenta <ArrowRight className="size-4" />
-            </Link>
-            <Link to="/entrar?next=/publicar" className={buttonClass("outline", "lg")}>
-              Ya tengo cuenta
-            </Link>
-          </div>
-        </div>
-      </Container>
-    );
+  // Sin sesión no hay formulario: se va a iniciar sesión y se vuelve aquí después.
+  useEffect(() => {
+    if (!authLoaded || user) return;
+    const back = `/publicar${editing ? `?editar=${encodeURIComponent(editing)}` : ""}`;
+    navigate(`/entrar?next=${encodeURIComponent(back)}`, { replace: true });
+  }, [authLoaded, user, editing, navigate]);
+
+  if (!authLoaded || !user || !user.verified) {
+    return <div className="min-h-[60vh]" aria-busy="true" />;
   }
 
   if (editState === "loading") return <div className="min-h-[60vh]" aria-busy="true" />;
@@ -733,27 +711,20 @@ export function Publish() {
                 </label>
               </div>
               <p className="mt-1 text-[14px] text-grafito-600">
-                Sin texto ni filtros encima: la foto va limpia.
+                Una foto real de tu propiedad, sin texto ni filtros encima.
               </p>
               <div className="mt-4 aspect-[4/3] overflow-hidden rounded-card bg-arena-200">
                 <img src={photoUrl(cover, 900, 675)} alt="" className="size-full object-cover" />
               </div>
-              <p className="mt-4 text-[14px] text-grafito-600">O usa una foto de muestra mientras tanto</p>
-              <div className="mt-2 grid grid-cols-6 gap-2">
-                {COVERS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setCover(c)}
-                    className={cx(
-                      "aspect-[4/3] overflow-hidden rounded-[3px] ring-offset-2 ring-offset-crema-050",
-                      cover === c ? "ring-2 ring-negro" : "opacity-70 hover:opacity-100",
-                    )}
-                  >
-                    <img src={photoUrl(c, 180, 135)} alt="" className="size-full object-cover" />
-                  </button>
-                ))}
-              </div>
+              {cover && (
+                <button
+                  type="button"
+                  onClick={() => setCover("")}
+                  className="mt-3 text-[14px] font-medium text-grafito-600 underline underline-offset-4"
+                >
+                  Quitar foto
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -110,8 +110,6 @@ export type Listing = {
   booked?: [string, string][];
   /** Published from this browser (kept so the owner can find it again). */
   isNew?: boolean;
-  /** Illustrative listing shipped with the site, not a real property. */
-  example?: boolean;
   /** Moderation state for listings stored in the database. */
   status?: ListingStatus;
   /** Territorial division for real listings (zone = district, region = department). */

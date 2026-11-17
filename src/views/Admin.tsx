@@ -24,7 +24,6 @@ type ListingRow = {
 type InquiryRow = {
   id: string;
   listing_title: string;
-  is_example: boolean;
   nombre: string;
   whatsapp: string;
   mensaje: string;
@@ -261,7 +260,6 @@ export function Admin() {
               <li key={q.id} className="p-5">
                 <p className="text-[14px] text-grafito-600">
                   {when(q.created_at)} · {q.listing_title}
-                  {q.is_example ? " · casa de ejemplo" : ""}
                 </p>
                 <p className="mt-1 text-[16px] font-semibold">
                   {q.nombre} · <span className="tabular-nums">{q.whatsapp}</span>

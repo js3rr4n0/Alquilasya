@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasDatabase } from "@/lib/db";
 import { invalid, noDatabase, rateLimited, tooMany } from "@/server/http";
-import { createInquiry, inquiryInput } from "@/server/listings";
+import { createInquiry, InputError, inquiryInput } from "@/server/listings";
 
 export async function POST(request: Request) {
   if (rateLimited(request, "inquiries", 6)) return tooMany();
@@ -20,6 +20,9 @@ export async function POST(request: Request) {
     const { owner } = await createInquiry(parsed.data);
     return NextResponse.json({ ok: true, owner }, { status: 201 });
   } catch (error) {
+    if (error instanceof InputError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
     console.error("POST /api/inquiries", error);
     return NextResponse.json(
       { error: "No pudimos enviar tu mensaje. Intenta de nuevo." },

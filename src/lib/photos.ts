@@ -136,13 +136,14 @@ const isRemoteOrLocal = (src: string) => /^(blob:|data:|https?:)/.test(src);
 
 /** Accepts an Unsplash photo id, a PHOTO key, or a full/blob URL. */
 export function photoUrl(src: string, w = 1200, h?: number) {
-  if (isRemoteOrLocal(src)) return src;
+  if (!src) return "/sin-foto.svg";
+  if (isRemoteOrLocal(src) || src.startsWith("/")) return src;
   const id = (PHOTO as Record<string, string>)[src] ?? src;
   return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}${h ? `&h=${h}` : ""}&q=80`;
 }
 
 export function photoSrcSet(src: string, widths = [480, 800, 1200, 1800], ratio?: number) {
-  if (isRemoteOrLocal(src)) return undefined;
+  if (!src || isRemoteOrLocal(src) || src.startsWith("/")) return undefined;
   return widths
     .map((w) => `${photoUrl(src, w, ratio ? Math.round(w * ratio) : undefined)} ${w}w`)
     .join(", ");

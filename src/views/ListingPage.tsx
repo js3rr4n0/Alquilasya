@@ -19,7 +19,6 @@ import {
   Folio,
   Modal,
 } from "../components/ui";
-import { PEOPLE } from "../data/people";
 import type { Listing } from "../data/types";
 import {
   DURATION,
@@ -56,9 +55,9 @@ export function ListingPage({ initial }: { initial?: Listing }) {
 
   const allPhotos = useMemo(() => {
     if (!listing) return [];
-    const list: { src: string; caption: string }[] = [
-      { src: listing.cover, caption: `${listing.title} · exterior` },
-    ];
+    const list: { src: string; caption: string }[] = listing.cover
+      ? [{ src: listing.cover, caption: `${listing.title} · foto principal` }]
+      : [];
     const seen = new Set([listing.cover]);
     for (const f of listing.floors) {
       for (const r of f.rooms) {
@@ -104,16 +103,14 @@ export function ListingPage({ initial }: { initial?: Listing }) {
     );
   }
 
-  const persona = PEOPLE[listing.ownerId];
-  const ownerName = listing.contactName ?? persona?.name ?? "Propietario";
+  const ownerName = listing.contactName ?? "Propietario";
   const pending = Boolean(listing.status && listing.status !== "publicada");
   const price = listing.prices[duration] ?? listing.prices[availableDurations[0]] ?? 0;
   const effectiveDuration: DurationKey = listing.prices[duration]
     ? duration
     : (availableDurations[0] ?? "mes");
   const deposit = isShortStay(effectiveDuration)
-    ? (listing.depositShort ??
-      (listing.example ? Math.round(listing.deposit * 0.15) : listing.deposit))
+    ? (listing.depositShort ?? listing.deposit)
     : listing.deposit;
   const startDate = fromIsoDay(start);
   const minAvail = fromIsoDay(listing.availableFrom);
@@ -143,15 +140,6 @@ export function ListingPage({ initial }: { initial?: Listing }) {
           </Container>
         </div>
       )}
-      {listing.example && (
-        <div className="border-b border-piedra-250/80 bg-arena-200">
-          <Container className="py-3 text-[15px] text-grafito-700">
-            <strong className="font-semibold text-negro">Anuncio de ejemplo.</strong> Muestra cómo
-            se ve una ficha completa; no corresponde a un inmueble disponible y las fotos son de
-            muestra.
-          </Container>
-        </div>
-      )}
       {/* ——— PHOTO FIRST (no text overlaid on photography) ——— */}
       <Container className="pt-6 lg:pt-8">
         <Folio
@@ -163,6 +151,11 @@ export function ListingPage({ initial }: { initial?: Listing }) {
           right={pending ? "Sin publicar" : `Publicada el ${dateShort(fromIsoDay(listing.publishedAt))}`}
         />
 
+        {allPhotos.length === 0 && (
+          <div className="mt-5 flex aspect-[16/7] items-center justify-center rounded-card bg-arena-200 text-[16px] text-grafito-600">
+            Quien publica aún no ha subido fotos.
+          </div>
+        )}
         <div className="mt-5 grid gap-2 overflow-hidden rounded-card sm:grid-cols-4 sm:grid-rows-2">
           {allPhotos.slice(0, 5).map((p, i) => (
             <button
@@ -192,16 +185,17 @@ export function ListingPage({ initial }: { initial?: Listing }) {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-[14px] text-grafito-600">
             {plural(allPhotos.length, "foto", "fotos")} · {spaceCount(listing)} espacios en el plano
-            {!listing.example && !/^https:/.test(listing.cover) && " · Foto de muestra: aún sin fotos propias"}
           </p>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setGalleryOpen(allPhotos[0]?.src ?? null)}
-            >
-              Ver las {allPhotos.length} fotos
-            </Button>
+            {allPhotos.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGalleryOpen(allPhotos[0]?.src ?? null)}
+              >
+                Ver las {allPhotos.length} fotos
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={share}>
               <Share2 className="size-4" /> {copied ? "Enlace copiado" : "Compartir"}
             </Button>
@@ -214,7 +208,6 @@ export function ListingPage({ initial }: { initial?: Listing }) {
       <Container className="pb-20 pt-8 lg:pb-28 lg:pt-10">
         <div className="border-b border-piedra-250/80 pb-8">
           <div className="flex flex-wrap items-center gap-2">
-            {listing.example && <Badge tone="outline">Ejemplo ilustrativo</Badge>}
             {pending && <Badge tone="aviso">En revisión</Badge>}
             {listing.promoted && <Badge tone="outline">Anuncio</Badge>}
             {listing.isNew && <Badge tone="ink">Tu anuncio</Badge>}
@@ -405,15 +398,13 @@ export function ListingPage({ initial }: { initial?: Listing }) {
               <Eyebrow index="07">Quién alquila</Eyebrow>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-5 rounded-card bg-crema-050 p-6 ring-1 ring-arena-200 sm:p-7">
                 <div className="flex items-center gap-4">
-                  <Avatar name={ownerName} initials={persona?.initials} size={56} />
+                  <Avatar name={ownerName} size={56} />
                   <div>
                     <h2 id="dueno-h" className="head text-[24px]">
                       {ownerName}.
                     </h2>
                     <p className="mt-0.5 text-[15px] text-grafito-600">
-                      {listing.example
-                        ? "Propietario ficticio de un anuncio de ejemplo"
-                        : "Alquila directamente, sin intermediarios"}
+                      {"Alquila directamente, sin intermediarios"}
                     </p>
                   </div>
                 </div>
