@@ -22,6 +22,7 @@ import type {
 } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, isoDay, m2, money } from "../lib/format";
+import { summaryFrom } from "../lib/summary";
 import { departments, districtsOf, getDistrict, getMunicipality } from "../lib/geo";
 import { track } from "../lib/track";
 import { uploadPhoto } from "../lib/upload";
@@ -206,7 +207,6 @@ export function Publish() {
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [cover, setCover] = useState("");
   const [coverBusy, setCoverBusy] = useState(false);
-  const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactWhatsapp, setContactWhatsapp] = useState("");
@@ -260,7 +260,6 @@ export function Publish() {
           setColonia(l.colonia ?? "");
           setPoint({ lat: l.lat, lng: l.lng });
           setCover(l.cover);
-          setSummary(l.summary);
           setDescription(l.description);
           setFloors(l.floors);
           setConditions(l.conditions);
@@ -333,7 +332,6 @@ export function Publish() {
     const offered = Object.values(prices);
     if (title.trim().length < 3) list.push("Ponle un nombre a la propiedad (paso 1).");
     if (!district) list.push("Elige el distrito donde está la propiedad (paso 1).");
-    if (summary.trim().length < 10) list.push("Describe la propiedad en una frase (paso 1).");
     if (contactName.trim().length < 2) list.push("Escribe tu nombre de contacto (paso 1).");
     if (!/^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()))
       list.push("Escribe un WhatsApp válido para que te contacten (paso 1).");
@@ -365,7 +363,8 @@ export function Publish() {
       lat: at.lat,
       lng: at.lng,
       cover: clean(cover) ? cover : "",
-      summary: summary.trim(),
+      // El resumen corto lo arma el servidor con la descripción.
+      summary: "",
       description: description.trim(),
       prices,
       deposit,
@@ -529,12 +528,15 @@ export function Publish() {
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="block sm:col-span-2">
-                  <span className="text-[14px] font-medium text-grafito-700">Nombre de la propiedad</span>
+                  <span className="text-[14px] font-medium text-grafito-700">Título del anuncio</span>
+                  <span className="mt-0.5 block text-[14px] text-grafito-600">
+                    Es lo primero que se lee en los resultados. Corto y claro.
+                  </span>
                   <input
                     type="text"
                     value={title}
                     maxLength={80}
-                    placeholder="Ej.: Casa en Residencial Las Jacarandas"
+                    placeholder="Ej.: Casa con jardín en Residencial Las Jacarandas"
                     onChange={(e) => setTitle(e.target.value)}
                     className={fieldClass}
                   />
@@ -633,17 +635,7 @@ export function Publish() {
                   </div>
                 )}
 
-                <label className="block sm:col-span-2">
-                  <span className="text-[14px] font-medium text-grafito-700">En una frase</span>
-                  <input
-                    type="text"
-                    value={summary}
-                    maxLength={200}
-                    placeholder="Ej.: Casa de una planta con terraza y jardín cerrado."
-                    onChange={(e) => setSummary(e.target.value)}
-                    className={fieldClass}
-                  />
-                </label>
+
 
                 <div className="sm:col-span-2">
                   <label htmlFor="descripcion" className="text-[14px] font-medium text-grafito-700">
@@ -1065,7 +1057,9 @@ export function Publish() {
                     {bathrooms === 1 ? "baño" : "baños"} · {m2(computedArea)}
                   </p>
                   <h3 className="serif mt-2 text-[36px] leading-none">{title || "Sin nombre todavía"}</h3>
-                  <p className="mt-3 text-[15.5px] text-grafito-700">{summary}</p>
+                  {summaryFrom(description, "") && (
+                    <p className="mt-3 text-[15.5px] text-grafito-700">{summaryFrom(description, "")}</p>
+                  )}
                   <div className="mt-4 flex flex-wrap gap-3 border-t border-arena-200 pt-4 text-[14px] tabular-nums">
                     {DURATIONS.filter((d) => prices[d.key]).map((d) => (
                       <span key={d.key} className="rounded-ctl bg-arena-200 px-3 py-1.5">
