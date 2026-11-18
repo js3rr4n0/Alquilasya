@@ -619,14 +619,15 @@ export function Publish() {
                       Marca en el mapa dónde está
                     </span>
                     <p className="mb-2 mt-0.5 text-[14px] leading-snug text-grafito-600">
-                      Toca el mapa o arrastra el pin. Así aparece tu anuncio en el mapa de
-                      resultados; puedes dejarlo en una esquina cercana si no quieres mostrar el
-                      punto exacto.
+                      Busca un lugar cercano (un centro comercial, una universidad, tu colonia), usa
+                      «Estoy aquí» si estás en la propiedad, o toca el mapa y arrastra el pin. Puedes
+                      dejarlo en una esquina cercana si no quieres mostrar el punto exacto.
                     </p>
                     <LocationPicker
                       center={{ lat: district.lat, lng: district.lng }}
                       value={point}
                       onChange={setPoint}
+                      districtName={district.name}
                     />
                   </div>
                 )}
