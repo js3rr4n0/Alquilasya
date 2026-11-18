@@ -801,7 +801,7 @@ export function Publish() {
                   const meta = CONDITIONS[key];
                   const current = conditions.find((c) => c.key === key)!;
                   return (
-                    <div key={key} className="rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
+                    <div key={key} className="min-w-0 rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <span className="text-[14px] font-medium text-terracota-700">{meta.label}</span>
