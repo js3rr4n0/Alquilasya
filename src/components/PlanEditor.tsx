@@ -7,7 +7,10 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Check,
   ChevronDown,
+  Move,
+  Undo2,
   Copy,
   Eye,
   ImagePlus,
@@ -143,14 +146,49 @@ function useCompact() {
   return compact;
 }
 
-function findSlot(floor: Floor, w: number, h: number) {
-  for (let y = 0; y <= floor.height - h; y += 0.5) {
-    for (let x = 0; x <= floor.width - w; x += 0.5) {
+/** Primer lugar libre (de arriba a la izquierda) donde cabe una pieza de w × h; null si no hay. */
+function findSlot(floor: Floor, w: number, h: number, ignoreId?: string) {
+  for (let y = 0; y <= floor.height - h + 1e-9; y += 0.5) {
+    for (let x = 0; x <= floor.width - w + 1e-9; x += 0.5) {
       const probe: Room = { id: "_", type: "sala", name: "", x, y, w, h, photos: [] };
-      if (!floor.rooms.some((r) => overlaps(probe, r))) return { x, y };
+      if (!floor.rooms.some((r) => r.id !== ignoreId && overlaps(probe, r))) return { x, y };
     }
   }
-  return { x: 0.5, y: 0.5 };
+  return null;
+}
+
+/**
+ * Como un rompecabezas de piezas deslizantes: la pieza avanza de medio metro en
+ * medio metro hacia donde se la lleva y se detiene al topar con otra pieza o con
+ * el borde del terreno. Nunca queda encima de otra.
+ */
+function slideRoom(floor: Floor, room: Room, tx: number, ty: number) {
+  const free = (x: number, y: number) =>
+    x >= -1e-9 &&
+    y >= -1e-9 &&
+    x + room.w <= floor.width + 1e-9 &&
+    y + room.h <= floor.height + 1e-9 &&
+    !floor.rooms.some((o) => o.id !== room.id && overlaps({ ...room, x, y }, o));
+  const walk = (order: "xy" | "yx") => {
+    let { x, y } = room;
+    for (const axis of order === "xy" ? ["x", "y"] : ["y", "x"]) {
+      const target = axis === "x" ? tx : ty;
+      const step = Math.sign(target - (axis === "x" ? x : y)) * SNAP;
+      while (step && Math.abs(target - (axis === "x" ? x : y)) >= SNAP / 2) {
+        const nx = axis === "x" ? x + step : x;
+        const ny = axis === "y" ? y + step : y;
+        if (!free(nx, ny)) break;
+        x = nx;
+        y = ny;
+      }
+    }
+    return { x, y };
+  };
+  // Se prueba en los dos órdenes y se queda el que llega más cerca de donde va el dedo.
+  const a = walk("xy");
+  const b = walk("yx");
+  const d = (p: { x: number; y: number }) => Math.hypot(p.x - tx, p.y - ty);
+  return d(a) <= d(b) ? a : b;
 }
 
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
@@ -177,8 +215,10 @@ export function PlanEditor({
   // En el teléfono, al elegir un espacio se lleva la vista a su ficha abierta
   // (no al cargar: la página no debe saltar sola).
   const firstSelection = useRef(selectedId);
+  const arrangingRef = useRef(false);
   useEffect(() => {
-    if (!compact || !selectedId || selectedId === firstSelection.current) return;
+    // Mientras se acomodan las piezas, la vista no se mueve sola.
+    if (!compact || arrangingRef.current || !selectedId || selectedId === firstSelection.current) return;
     firstSelection.current = null;
     const t = window.setTimeout(
       () => document.getElementById(`espacio-${selectedId}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
@@ -186,6 +226,35 @@ export function PlanEditor({
     );
     return () => window.clearTimeout(t);
   }, [compact, selectedId]);
+  // Mover las piezas con el dedo en el teléfono (si no, el plano deja desplazar la página).
+  const [arranging, setArranging] = useState(false);
+  arrangingRef.current = arranging;
+
+  /* ——— Deshacer ——— */
+  const history = useRef<Floor[][]>([]);
+  const lastRecord = useRef<{ key: string; at: number }>({ key: "", at: 0 });
+  const [canUndo, setCanUndo] = useState(false);
+  /** Guarda el estado actual antes de un cambio. Los cambios seguidos del mismo campo cuentan como uno. */
+  function remember(key?: string) {
+    const now = Date.now();
+    if (key && lastRecord.current.key === key && now - lastRecord.current.at < 1500) {
+      lastRecord.current.at = now;
+      return;
+    }
+    lastRecord.current = { key: key ?? "", at: now };
+    history.current = [...history.current.slice(-49), floors];
+    setCanUndo(true);
+  }
+  function undo() {
+    const prev = history.current.pop();
+    setCanUndo(history.current.length > 0);
+    lastRecord.current = { key: "", at: 0 };
+    if (prev) {
+      onChange(prev);
+      setFloorIdx((i) => Math.min(i, prev.length - 1));
+    }
+  }
+
   const svgRef = useRef<SVGSVGElement>(null);
   const dragState = useRef<{
     id: string;
@@ -217,12 +286,22 @@ export function PlanEditor({
     return set;
   }, [floor.rooms]);
 
-  function updateFloor(patch: Partial<Floor>) {
+  /** `record`: false durante un arrastre (se guarda una sola vez, al empezar); un texto agrupa cambios seguidos. */
+  function updateFloor(patch: Partial<Floor>, record: boolean | string = true) {
+    if (record) remember(typeof record === "string" ? record : undefined);
     onChange(floors.map((f, i) => (i === floorIdx ? { ...f, ...patch } : f)));
   }
 
-  function updateRoom(id: string, patch: Partial<Room>) {
-    updateFloor({ rooms: floor.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+  function updateRoom(id: string, patch: Partial<Room>, record: boolean | string = true) {
+    updateFloor({ rooms: floor.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)) }, record);
+  }
+
+  /** Lugar para una pieza nueva: el primer hueco libre o, si no hay, debajo (el terreno crece). */
+  function placeFor(w: number, h: number, ignoreId?: string) {
+    const slot = findSlot(floor, w, h, ignoreId);
+    if (slot) return { ...slot, height: floor.height, width: floor.width };
+    const bottom = Math.max(0, ...floor.rooms.filter((r) => r.id !== ignoreId).map((r) => r.y + r.h));
+    return { x: 0, y: bottom, height: Math.max(floor.height, bottom + h), width: Math.max(floor.width, w) };
   }
 
   /** Medida de la planta tal como se escribió; los cuartos que se salen se acomodan adentro. */
@@ -246,12 +325,25 @@ export function PlanEditor({
   function setRoomSize(id: string, patch: { w?: number; h?: number }) {
     const r = floor.rooms.find((x) => x.id === id);
     if (!r) return;
-    const next = { ...r, ...patch };
-    const width = Math.max(floor.width, next.x + next.w);
-    const height = Math.max(floor.height, next.y + next.h);
+    let next = { ...r, ...patch };
+    let width = Math.max(floor.width, next.x + next.w);
+    let height = Math.max(floor.height, next.y + next.h);
+    // Las piezas no se enciman: si con la medida nueva choca con otra, se lleva a un hueco libre.
+    const bigger = { ...floor, width, height };
+    if (floor.rooms.some((o) => o.id !== id && overlaps(next, o))) {
+      const slot = findSlot(bigger, next.w, next.h, id);
+      if (slot) next = { ...next, ...slot };
+      else {
+        const bottom = Math.max(0, ...floor.rooms.filter((o) => o.id !== id).map((o) => o.y + o.h));
+        next = { ...next, x: 0, y: bottom };
+        height = Math.max(height, bottom + next.h);
+        width = Math.max(width, next.w);
+      }
+      toast(`«${next.name}» ya no cabía ahí: lo pusimos en un espacio libre. Deslízalo a su lugar.`);
+    }
     updateFloor({ width, height, rooms: floor.rooms.map((x) => (x.id === id ? next : x)) });
     if (width !== floor.width || height !== floor.height) {
-      toast(`La planta creció a ${String(width).replace(".", ",")} × ${String(height).replace(".", ",")} m para que quepa.`);
+      toast(`El terreno creció a ${String(width).replace(".", ",")} × ${String(height).replace(".", ",")} m para que quepa.`);
     }
   }
 
@@ -261,12 +353,15 @@ export function PlanEditor({
     const h = Math.min(meta.h, floor.height);
     const sameCount = floor.rooms.filter((r) => r.type === type).length;
     const name = sameCount === 0 ? meta.label : `${meta.label} ${sameCount + 1}`;
-    const pos = at
-      ? {
-          x: clamp(snap(at.x - w / 2), 0, floor.width - w),
-          y: clamp(snap(at.y - h / 2), 0, floor.height - h),
-        }
-      : findSlot(floor, w, h);
+    // Donde se soltó, si está libre; si no, en el primer hueco libre (o debajo, y el terreno crece).
+    const dropped = at && {
+      x: clamp(snap(at.x - w / 2), 0, floor.width - w),
+      y: clamp(snap(at.y - h / 2), 0, floor.height - h),
+    };
+    const droppedFree =
+      dropped && !floor.rooms.some((o) => overlaps({ id: "_", type, name: "", ...dropped, w, h, photos: [] }, o));
+    const place = droppedFree ? { ...dropped, width: floor.width, height: floor.height } : placeFor(w, h);
+    const pos = { x: place.x, y: place.y };
     const room: Room = {
       id: `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
       type,
@@ -279,12 +374,12 @@ export function PlanEditor({
       features: meta.features.slice(0, 2),
       view: undefined,
     };
-    updateFloor({ rooms: [...floor.rooms, room] });
+    updateFloor({ rooms: [...floor.rooms, room], width: place.width, height: place.height });
     setSelectedId(room.id);
   }
 
   function duplicateRoom(r: Room) {
-    const pos = findSlot(floor, r.w, r.h);
+    const pos = placeFor(r.w, r.h);
     const copy: Room = {
       ...r,
       id: `u${Date.now().toString(36)}`,
@@ -292,7 +387,7 @@ export function PlanEditor({
       x: pos.x,
       y: pos.y,
     };
-    updateFloor({ rooms: [...floor.rooms, copy] });
+    updateFloor({ rooms: [...floor.rooms, copy], width: pos.width, height: pos.height });
     setSelectedId(copy.id);
   }
 
@@ -324,6 +419,7 @@ export function PlanEditor({
         },
       ],
     };
+    remember();
     onChange([...floors, nf]);
     setFloorIdx(floors.length);
     setSelectedId(nf.rooms[0].id);
@@ -334,6 +430,7 @@ export function PlanEditor({
     if (!svgRef.current) return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     const p = svgPoint(svgRef.current, e.clientX, e.clientY);
+    remember();
     dragState.current = {
       id: room.id,
       kind,
@@ -350,15 +447,22 @@ export function PlanEditor({
     const dx = p.x / UNITS - st.startMouse.x;
     const dy = p.y / UNITS - st.startMouse.y;
     const r = st.startRoom;
+    const live = floor.rooms.find((x) => x.id === st.id);
+    if (!live) return;
     if (st.kind === "move") {
-      updateRoom(st.id, {
-        x: clamp(snap(r.x + dx), 0, floor.width - r.w),
-        y: clamp(snap(r.y + dy), 0, floor.height - r.h),
-      });
+      const to = slideRoom(floor, live, snap(r.x + dx), snap(r.y + dy));
+      if (to.x !== live.x || to.y !== live.y) updateRoom(st.id, to, false);
     } else {
-      const w = st.kind === "s" ? r.w : clamp(snap(r.w + dx), 1, floor.width - r.x);
-      const h = st.kind === "e" ? r.h : clamp(snap(r.h + dy), 1, floor.height - r.y);
-      updateRoom(st.id, { w, h });
+      // Agrandar también se detiene al topar con otra pieza.
+      const tw = st.kind === "s" ? r.w : clamp(snap(r.w + dx), 1, floor.width - r.x);
+      const th = st.kind === "e" ? r.h : clamp(snap(r.h + dy), 1, floor.height - r.y);
+      const fits = (w: number, h: number) =>
+        !floor.rooms.some((o) => o.id !== live.id && overlaps({ ...live, w, h }, o));
+      let w = live.w;
+      let h = live.h;
+      while (Math.abs(tw - w) >= SNAP / 2 && fits(w + Math.sign(tw - w) * SNAP, h)) w += Math.sign(tw - w) * SNAP;
+      while (Math.abs(th - h) >= SNAP / 2 && fits(w, h + Math.sign(th - h) * SNAP)) h += Math.sign(th - h) * SNAP;
+      if (w !== live.w || h !== live.h) updateRoom(st.id, { w, h }, false);
     }
   }
 
@@ -391,19 +495,15 @@ export function PlanEditor({
         h: clamp(room.h + dy, 1, floor.height - room.y),
       });
     } else {
-      updateRoom(room.id, {
-        x: clamp(room.x + dx, 0, floor.width - room.w),
-        y: clamp(room.y + dy, 0, floor.height - room.h),
-      });
+      updateRoom(room.id, slideRoom(floor, room, room.x + dx, room.y + dy), `mover:${room.id}`);
     }
   }
 
   /** Mover el espacio medio metro (flechas del teléfono, en lugar de arrastrar). */
   function nudge(room: Room, dx: number, dy: number) {
-    updateRoom(room.id, {
-      x: clamp(room.x + dx, 0, Math.max(0, floor.width - room.w)),
-      y: clamp(room.y + dy, 0, Math.max(0, floor.height - room.h)),
-    });
+    const to = slideRoom(floor, room, room.x + dx, room.y + dy);
+    if (to.x === room.x && to.y === room.y) toast("Ahí topa con otra pieza o con el borde del terreno.");
+    else updateRoom(room.id, to, `mover:${room.id}`);
   }
 
   async function onFiles(files: FileList | null) {
@@ -462,7 +562,7 @@ export function PlanEditor({
                 <input
                   type="text"
                   value={selected.name}
-                  onChange={(e) => updateRoom(selected.id, { name: e.target.value })}
+                  onChange={(e) => updateRoom(selected.id, { name: e.target.value }, `nombre:${selected.id}`)}
                   className="mt-1 h-10 w-full rounded-ctl bg-crema-100 px-3 text-[15px] font-semibold ring-1 ring-piedra-250 outline-none focus:ring-negro"
                 />
               </label>
@@ -658,7 +758,7 @@ export function PlanEditor({
                 <input
                   type="text"
                   value={selected.note ?? ""}
-                  onChange={(e) => updateRoom(selected.id, { note: e.target.value || undefined })}
+                  onChange={(e) => updateRoom(selected.id, { note: e.target.value || undefined }, `nota:${selected.id}`)}
                   placeholder="Ej.: cabe una cama queen o un escritorio…"
                   className="mt-1 h-9 w-full rounded-ctl bg-crema-100 px-3 text-[14px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
                 />
@@ -717,6 +817,7 @@ export function PlanEditor({
                   "block h-auto w-full select-none",
                   // En la computadora se arrastra; en el teléfono la página debe poder desplazarse.
                   !compact && "min-w-[540px] touch-none",
+                  compact && arranging && "touch-none",
                 )}
                 role="application"
                 aria-label="Editor del plano. Usa las flechas para mover el espacio seleccionado y Shift más flechas para cambiar su tamaño."
@@ -753,9 +854,9 @@ export function PlanEditor({
                       tabIndex={0}
                       aria-label={`${room.name}, ${dec(room.w)} por ${dec(room.h)} metros`}
                       onKeyDown={(e) => onRoomKey(e, room)}
-                      onPointerDown={compact ? undefined : (e) => startDrag(e, room, "move")}
-                      onClick={compact ? () => setSelectedId(room.id) : undefined}
-                      style={{ cursor: compact ? "pointer" : "grab" }}
+                      onPointerDown={compact && !arranging ? undefined : (e) => startDrag(e, room, "move")}
+                      onClick={compact && !arranging ? () => setSelectedId(room.id) : undefined}
+                      style={{ cursor: compact && !arranging ? "pointer" : "grab" }}
                     >
                       <rect
                         x={x}
@@ -950,6 +1051,34 @@ export function PlanEditor({
           </div>
         </div>
 
+        {/* Acomodar: como un rompecabezas, las piezas se deslizan sin encimarse. */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={arranging ? "ink" : "outline"}
+            size="sm"
+            className="flex-1"
+            onClick={() => setArranging((v) => !v)}
+            aria-pressed={arranging}
+          >
+            {arranging ? <Check className="size-4" /> : <Move className="size-4" />}
+            {arranging ? "Listo" : "Acomodar piezas"}
+          </Button>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            className="inline-flex h-10 items-center gap-1.5 rounded-ctl px-3 text-[14px] font-medium text-negro ring-1 ring-piedra-250 disabled:opacity-40"
+          >
+            <Undo2 className="size-4" /> Deshacer
+          </button>
+        </div>
+        {arranging && (
+          <p className="-mt-2 rounded-ctl bg-crema-100 px-3 py-2 text-[14px] text-grafito-700 ring-1 ring-arena-200">
+            Desliza cada cuarto con el dedo hasta su lugar. Se detiene al topar con otro o con el borde: nunca se
+            enciman. Toca «Listo» para volver a desplazarte por la página.
+          </p>
+        )}
+
         {canvas}
 
         {/* Añadir */}
@@ -1037,7 +1166,10 @@ export function PlanEditor({
           {onReset && (
             <button
               type="button"
-              onClick={onReset}
+              onClick={() => {
+                remember();
+                onReset();
+              }}
               className="inline-flex items-center gap-1 text-[14px] text-grafito-600"
             >
               <RotateCcw className="size-3.5" /> Empezar de nuevo
@@ -1107,13 +1239,24 @@ export function PlanEditor({
           {onReset && (
             <button
               type="button"
-              onClick={onReset}
+              onClick={() => {
+                remember();
+                onReset();
+              }}
               className="inline-flex items-center gap-1 text-grafito-600 hover:text-negro"
               title="Volver al plano de ejemplo"
             >
               <RotateCcw className="size-3.5" /> Restablecer
             </button>
           )}
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            className="inline-flex h-9 items-center gap-1.5 rounded-ctl px-3 text-[14px] font-medium text-negro ring-1 ring-piedra-250 disabled:opacity-40"
+          >
+            <Undo2 className="size-4" /> Deshacer
+          </button>
           <Button variant="ink" size="sm" onClick={() => setMode("inquilino")}>
             <Eye className="size-3.5" /> Probar como inquilino
           </Button>
