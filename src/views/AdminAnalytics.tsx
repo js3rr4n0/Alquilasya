@@ -65,7 +65,7 @@ const EVENT_LABEL: Record<string, string> = {
 
 function Card({ title, note, children, className }: { title: string; note?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cx("rounded-card bg-crema-050 p-5 ring-1 ring-arena-200 sm:p-6", className)}>
+    <section className={cx("min-w-0 rounded-card bg-crema-050 p-5 ring-1 ring-arena-200 sm:p-6", className)}>
       <h3 className="text-[16px] font-semibold text-negro">{title}</h3>
       {note && <p className="mt-0.5 text-[14px] text-grafito-600">{note}</p>}
       <div className="mt-4">{children}</div>

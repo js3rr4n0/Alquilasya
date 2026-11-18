@@ -223,7 +223,8 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       className={cx(
-        "inline-flex rounded-ctl p-[3px]",
+        // Si las opciones no caben (teléfono), la fila se desliza en lugar de salirse.
+        "inline-flex max-w-full overflow-x-auto rounded-ctl p-[3px] no-scrollbar",
         dark
           ? "bg-crema-100/[0.07] ring-1 ring-crema-100/15"
           : "bg-arena-200 ring-1 ring-piedra-250/70",
@@ -248,7 +249,7 @@ export function Segmented<T extends string>({
             onKeyDown={(e) => onKey(e, i)}
             onClick={() => onChange(o.value)}
             className={cx(
-              "relative inline-flex items-center justify-center whitespace-nowrap rounded-[3px] font-medium transition-colors duration-200",
+              "relative inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-[3px] font-medium transition-colors duration-200",
               h,
               stretch && "min-w-0 flex-1",
               active

@@ -44,7 +44,7 @@ export function Header() {
           <Logotipo width={140} tone="crema" className="md:hidden" />
         </Link>
 
-        <nav aria-label="Principal" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Principal" className="hidden items-center gap-1 lg:flex">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -83,7 +83,7 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           <ButtonLink to={account.to} variant="ghostLight" size="sm">
             {account.label}
           </ButtonLink>
@@ -98,7 +98,7 @@ export function Header() {
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
-          className="relative -mr-2 inline-flex size-11 items-center justify-center rounded-ctl hover:bg-crema-100/10 md:hidden"
+          className="relative -mr-2 inline-flex size-11 items-center justify-center rounded-ctl hover:bg-crema-100/10 lg:hidden"
         >
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
@@ -107,7 +107,7 @@ export function Header() {
       {open && (
         <div
           id="mobile-menu"
-          className="dots fixed inset-x-0 bottom-0 top-[68px] z-[999] animate-fade overflow-y-auto bg-negro md:hidden"
+          className="dots fixed inset-x-0 bottom-0 top-[68px] z-[999] animate-fade overflow-y-auto bg-negro lg:hidden"
         >
           <nav aria-label="Principal" className="flex flex-col px-5 pt-6 sm:px-8">
             {[{ to: "/", label: "Inicio" }, ...nav, { to: account.to, label: user ? "Mi cuenta" : "Entrar" }].map((item, i) => (

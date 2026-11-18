@@ -821,14 +821,14 @@ export function Publish() {
                           ]}
                         />
                       </div>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-[0.42fr_0.58fr]">
+                      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
                         <input
                           type="text"
                           value={current.value}
                           onChange={(e) => updateCondition(key, { value: e.target.value })}
                           placeholder="Resumen corto"
                           aria-label={`Resumen para ${meta.label}`}
-                          className="h-11 rounded-ctl bg-crema-100 px-3 text-[15px] font-medium ring-1 ring-piedra-250 outline-none focus:ring-negro"
+                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[15px] font-medium ring-1 ring-piedra-250 outline-none focus:ring-negro"
                         />
                         <input
                           type="text"
@@ -838,7 +838,7 @@ export function Publish() {
                           }
                           placeholder="Detalle o condición (opcional)"
                           aria-label={`Detalle para ${meta.label}`}
-                          className="h-11 rounded-ctl bg-crema-100 px-3 text-[15px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
+                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[15px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
                         />
                       </div>
                     </div>
