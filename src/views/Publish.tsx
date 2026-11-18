@@ -479,7 +479,8 @@ export function Publish() {
 
           <nav
             aria-label="Pasos para publicar"
-            className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+            // En el teléfono, una fila que se desliza; desde tableta, la cuadrícula.
+            className="-mx-5 mt-6 flex gap-2 overflow-x-auto px-5 no-scrollbar sm:mx-0 sm:mt-7 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-5"
           >
             {STEPS.map((s, i) => {
               const active = s.key === step;
@@ -491,7 +492,7 @@ export function Publish() {
                   onClick={() => go(s.key)}
                   aria-current={active ? "step" : undefined}
                   className={cx(
-                    "flex flex-col rounded-ctl p-3 text-left ring-1 transition-colors",
+                    "flex shrink-0 flex-col rounded-ctl p-3 text-left ring-1 transition-colors max-sm:min-w-[140px] max-sm:py-2.5",
                     active
                       ? "bg-crema-100 text-negro ring-crema-100"
                       : done
@@ -782,8 +783,9 @@ export function Publish() {
           <div>
             <div className="mb-6">
               <Eyebrow index="02">El plano de la casa</Eyebrow>
-              <h2 className="head mt-2 text-[32px]">
-                Arrastra cada espacio, pon sus metros y sube sus fotos.
+              <h2 className="head mt-2 text-[28px] sm:text-[32px]">
+                <span className="lg:hidden">Agrega cada espacio con sus metros y fotos.</span>
+                <span className="hidden lg:inline">Arrastra cada espacio, pon sus metros y sube sus fotos.</span>
               </h2>
             </div>
             <PlanEditor
