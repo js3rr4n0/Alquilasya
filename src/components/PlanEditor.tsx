@@ -263,7 +263,8 @@ export function PlanEditor({
     startRoom: Room;
   } | null>(null);
 
-  const M = 70;
+  // Margen para la cinta métrica del terreno (más ancho en el teléfono, donde el plano se ve chico).
+  const M = compact ? 190 : 120;
   const B = 150;
   const vbW = floor.width * UNITS + M * 2;
   const vbH = floor.height * UNITS + M + B;
@@ -824,6 +825,38 @@ export function PlanEditor({
               >
                 <PlanDefs uid={uid} k={k} />
                 <MetreGrid width={floor.width} height={floor.height} />
+                {/* Medida del terreno: arriba el ancho y al costado el fondo, como una cinta métrica. */}
+                <g aria-hidden style={{ pointerEvents: "none" }}>
+                  <line x1={0} x2={floor.width * UNITS} y1={-28 * Math.min(k, 2.2)} y2={-28 * Math.min(k, 2.2)} stroke="#6F6155" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <line x1={0} x2={0} y1={-36 * Math.min(k, 2.2)} y2={-20 * Math.min(k, 2.2)} stroke="#6F6155" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <line x1={floor.width * UNITS} x2={floor.width * UNITS} y1={-36 * Math.min(k, 2.2)} y2={-20 * Math.min(k, 2.2)} stroke="#6F6155" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <text
+                    x={(floor.width * UNITS) / 2}
+                    y={-28 * Math.min(k, 2.2) - 6 * k}
+                    textAnchor="middle"
+                    fontFamily={MONO}
+                    fontSize={12 * k}
+                    fontWeight={600}
+                    fill="#0A0A0A"
+                  >
+                    {dec(floor.width)} m
+                  </text>
+                  <line x1={-28 * Math.min(k, 2.2)} x2={-28 * Math.min(k, 2.2)} y1={0} y2={floor.height * UNITS} stroke="#6F6155" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <line x1={-36 * Math.min(k, 2.2)} x2={-20 * Math.min(k, 2.2)} y1={0} y2={0} stroke="#6F6155" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <line x1={-36 * Math.min(k, 2.2)} x2={-20 * Math.min(k, 2.2)} y1={floor.height * UNITS} y2={floor.height * UNITS} stroke="#6F6155" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <text
+                    x={-28 * Math.min(k, 2.2) - 6 * k}
+                    y={(floor.height * UNITS) / 2}
+                    textAnchor="middle"
+                    fontFamily={MONO}
+                    fontSize={12 * k}
+                    fontWeight={600}
+                    fill="#0A0A0A"
+                    transform={`rotate(-90 ${-28 * Math.min(k, 2.2) - 6 * k} ${(floor.height * UNITS) / 2})`}
+                  >
+                    {dec(floor.height)} m
+                  </text>
+                </g>
 
                 {floor.rooms.map((room) => {
                   const meta = ROOM_TYPES[room.type];
@@ -894,7 +927,10 @@ export function PlanEditor({
                         fill={text}
                         style={{ pointerEvents: "none" }}
                       >
-                        {compact ? `${dec(a, 1)} m²` : `${dec(room.w)} × ${dec(room.h)} m · ${dec(a, 1)} m²`}
+                        {compact
+                          ? // En el teléfono, la medida de los lados (los m² están en la lista).
+                            `${dec(room.w)} × ${dec(room.h)} m`
+                          : `${dec(room.w)} × ${dec(room.h)} m · ${dec(a, 1)} m²`}
                       </text>
 
                       {active && !compact && (
