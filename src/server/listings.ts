@@ -5,6 +5,7 @@ import type { Listing, ListingStatus } from "@/data/types";
 import { query } from "@/lib/db";
 import { sendListingFlagged, mailConfigured } from "./mail";
 import { reviewListing } from "./moderation";
+import { summaryFrom } from "@/lib/summary";
 
 /* ——— Validación de lo que llega desde el formulario de publicar ——— */
 
@@ -70,7 +71,8 @@ export const listingInput = z.object({
   lat: z.number().min(12.9).max(14.6),
   lng: z.number().min(-90.3).max(-87.5),
   cover: z.union([photo, z.literal("")]),
-  summary: text(200).min(10, "Describe la propiedad en una frase"),
+  // Ya no se pide en el formulario: si llega vacío, se arma con la descripción.
+  summary: text(200).optional().default(""),
   description: text(3000),
   prices: z
     .object({
@@ -213,8 +215,14 @@ async function prepare(input: ListingInput) {
   );
 
   // Todo lo que suena a respaldo de AlquilasYa lo decide el servidor, nunca el formulario.
+  const roomsText = bedrooms === 0 ? "1 ambiente" : `${bedrooms} ${bedrooms === 1 ? "habitación" : "habitaciones"}`;
+  const summary =
+    fields.summary?.trim() ||
+    summaryFrom(fields.description, `${fields.type} de ${roomsText} y ${area} m² en ${place.district}, ${place.department}.`);
+
   const data: Omit<Listing, "id"> = {
     ...fields,
+    summary,
     zone: place.district,
     region: place.department,
     municipality: place.municipality,

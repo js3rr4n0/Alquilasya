@@ -57,7 +57,7 @@ const SHORT: Record<string, string> = {
  * El nombre si cabe; si no, su primera palabra; si no, una abreviatura conocida
  * («DORM. 2»); y si nada cabe, ninguno: la lista de espacios debajo lo nombra.
  */
-function fitLabel(name: string, widthUnits: number, fs: number, type?: string) {
+export function fitLabel(name: string, widthUnits: number, fs: number, type?: string) {
   const charW = fs * 0.64;
   const max = Math.floor(widthUnits / charW);
   if (name.length <= max) return name;

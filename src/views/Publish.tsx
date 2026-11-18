@@ -22,6 +22,7 @@ import type {
 } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
 import { cx, isoDay, m2, money } from "../lib/format";
+import { summaryFrom } from "../lib/summary";
 import { departments, districtsOf, getDistrict, getMunicipality } from "../lib/geo";
 import { track } from "../lib/track";
 import { uploadPhoto } from "../lib/upload";
@@ -206,7 +207,6 @@ export function Publish() {
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [cover, setCover] = useState("");
   const [coverBusy, setCoverBusy] = useState(false);
-  const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactWhatsapp, setContactWhatsapp] = useState("");
@@ -260,7 +260,6 @@ export function Publish() {
           setColonia(l.colonia ?? "");
           setPoint({ lat: l.lat, lng: l.lng });
           setCover(l.cover);
-          setSummary(l.summary);
           setDescription(l.description);
           setFloors(l.floors);
           setConditions(l.conditions);
@@ -333,7 +332,6 @@ export function Publish() {
     const offered = Object.values(prices);
     if (title.trim().length < 3) list.push("Ponle un nombre a la propiedad (paso 1).");
     if (!district) list.push("Elige el distrito donde está la propiedad (paso 1).");
-    if (summary.trim().length < 10) list.push("Describe la propiedad en una frase (paso 1).");
     if (contactName.trim().length < 2) list.push("Escribe tu nombre de contacto (paso 1).");
     if (!/^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()))
       list.push("Escribe un WhatsApp válido para que te contacten (paso 1).");
@@ -365,7 +363,8 @@ export function Publish() {
       lat: at.lat,
       lng: at.lng,
       cover: clean(cover) ? cover : "",
-      summary: summary.trim(),
+      // El resumen corto lo arma el servidor con la descripción.
+      summary: "",
       description: description.trim(),
       prices,
       deposit,
@@ -479,7 +478,8 @@ export function Publish() {
 
           <nav
             aria-label="Pasos para publicar"
-            className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+            // En el teléfono, una fila que se desliza; desde tableta, la cuadrícula.
+            className="-mx-5 mt-6 flex gap-2 overflow-x-auto px-5 no-scrollbar sm:mx-0 sm:mt-7 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-5"
           >
             {STEPS.map((s, i) => {
               const active = s.key === step;
@@ -491,7 +491,7 @@ export function Publish() {
                   onClick={() => go(s.key)}
                   aria-current={active ? "step" : undefined}
                   className={cx(
-                    "flex flex-col rounded-ctl p-3 text-left ring-1 transition-colors",
+                    "flex shrink-0 flex-col rounded-ctl p-3 text-left ring-1 transition-colors max-sm:min-w-[140px] max-sm:py-2.5",
                     active
                       ? "bg-crema-100 text-negro ring-crema-100"
                       : done
@@ -528,12 +528,15 @@ export function Publish() {
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="block sm:col-span-2">
-                  <span className="text-[14px] font-medium text-grafito-700">Nombre de la propiedad</span>
+                  <span className="text-[14px] font-medium text-grafito-700">Título del anuncio</span>
+                  <span className="mt-0.5 block text-[14px] text-grafito-600">
+                    Es lo primero que se lee en los resultados. Corto y claro.
+                  </span>
                   <input
                     type="text"
                     value={title}
                     maxLength={80}
-                    placeholder="Ej.: Casa en Residencial Las Jacarandas"
+                    placeholder="Ej.: Casa con jardín en Residencial Las Jacarandas"
                     onChange={(e) => setTitle(e.target.value)}
                     className={fieldClass}
                   />
@@ -619,29 +622,20 @@ export function Publish() {
                       Marca en el mapa dónde está
                     </span>
                     <p className="mb-2 mt-0.5 text-[14px] leading-snug text-grafito-600">
-                      Toca el mapa o arrastra el pin. Así aparece tu anuncio en el mapa de
-                      resultados; puedes dejarlo en una esquina cercana si no quieres mostrar el
-                      punto exacto.
+                      Busca un lugar cercano (un centro comercial, una universidad, tu colonia), usa
+                      «Estoy aquí» si estás en la propiedad, o toca el mapa y arrastra el pin. Puedes
+                      dejarlo en una esquina cercana si no quieres mostrar el punto exacto.
                     </p>
                     <LocationPicker
                       center={{ lat: district.lat, lng: district.lng }}
                       value={point}
                       onChange={setPoint}
+                      districtName={district.name}
                     />
                   </div>
                 )}
 
-                <label className="block sm:col-span-2">
-                  <span className="text-[14px] font-medium text-grafito-700">En una frase</span>
-                  <input
-                    type="text"
-                    value={summary}
-                    maxLength={200}
-                    placeholder="Ej.: Casa de una planta con terraza y jardín cerrado."
-                    onChange={(e) => setSummary(e.target.value)}
-                    className={fieldClass}
-                  />
-                </label>
+
 
                 <div className="sm:col-span-2">
                   <label htmlFor="descripcion" className="text-[14px] font-medium text-grafito-700">
@@ -781,8 +775,9 @@ export function Publish() {
           <div>
             <div className="mb-6">
               <Eyebrow index="02">El plano de la casa</Eyebrow>
-              <h2 className="head mt-2 text-[32px]">
-                Arrastra cada espacio, pon sus metros y sube sus fotos.
+              <h2 className="head mt-2 text-[28px] sm:text-[32px]">
+                <span className="lg:hidden">Agrega cada espacio con sus metros y fotos.</span>
+                <span className="hidden lg:inline">Arrastra cada espacio, pon sus metros y sube sus fotos.</span>
               </h2>
             </div>
             <PlanEditor
@@ -806,7 +801,7 @@ export function Publish() {
                   const meta = CONDITIONS[key];
                   const current = conditions.find((c) => c.key === key)!;
                   return (
-                    <div key={key} className="rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
+                    <div key={key} className="min-w-0 rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <span className="text-[14px] font-medium text-terracota-700">{meta.label}</span>
@@ -826,14 +821,14 @@ export function Publish() {
                           ]}
                         />
                       </div>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-[0.42fr_0.58fr]">
+                      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
                         <input
                           type="text"
                           value={current.value}
                           onChange={(e) => updateCondition(key, { value: e.target.value })}
                           placeholder="Resumen corto"
                           aria-label={`Resumen para ${meta.label}`}
-                          className="h-11 rounded-ctl bg-crema-100 px-3 text-[15px] font-medium ring-1 ring-piedra-250 outline-none focus:ring-negro"
+                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[15px] font-medium ring-1 ring-piedra-250 outline-none focus:ring-negro"
                         />
                         <input
                           type="text"
@@ -843,7 +838,7 @@ export function Publish() {
                           }
                           placeholder="Detalle o condición (opcional)"
                           aria-label={`Detalle para ${meta.label}`}
-                          className="h-11 rounded-ctl bg-crema-100 px-3 text-[15px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
+                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[15px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
                         />
                       </div>
                     </div>
@@ -1062,7 +1057,9 @@ export function Publish() {
                     {bathrooms === 1 ? "baño" : "baños"} · {m2(computedArea)}
                   </p>
                   <h3 className="serif mt-2 text-[36px] leading-none">{title || "Sin nombre todavía"}</h3>
-                  <p className="mt-3 text-[15.5px] text-grafito-700">{summary}</p>
+                  {summaryFrom(description, "") && (
+                    <p className="mt-3 text-[15.5px] text-grafito-700">{summaryFrom(description, "")}</p>
+                  )}
                   <div className="mt-4 flex flex-wrap gap-3 border-t border-arena-200 pt-4 text-[14px] tabular-nums">
                     {DURATIONS.filter((d) => prices[d.key]).map((d) => (
                       <span key={d.key} className="rounded-ctl bg-arena-200 px-3 py-1.5">
