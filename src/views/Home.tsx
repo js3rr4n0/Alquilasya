@@ -483,7 +483,7 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
                 quince minutos.
               </h2>
               <p className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-grafito-700">
-                Arrastras cada cuarto, pones sus metros, eliges fotos y respondes las once
+                Pones cada cuarto con sus metros, subes tus propias fotos y respondes las once
                 condiciones. Publicar es gratis y tu anuncio sale al instante.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
