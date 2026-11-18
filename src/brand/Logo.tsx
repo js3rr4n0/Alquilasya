@@ -24,7 +24,8 @@ export type LogoTone = "tinta" | "crema" | "dos-tintas" | "dos-tintas-oscuro";
 /**
  * El logotipo es un vector oficial, nunca se recompone con tipografía.
  * Reglas del manual: monotono por defecto; micro (sin corte) por debajo de
- * 180 px de ancho; dos tintas solo desde 200 px y sobre fondo neutro.
+ * 180 px de ancho. Dos tintas («Ya» en terracota) desde 180 px: decisión de la
+ * marca para que la Y se vea terracota también en el teléfono.
  */
 export function Logotipo({
   width = 180,
@@ -38,7 +39,7 @@ export function Logotipo({
   title?: string;
 }) {
   const micro = width < 180;
-  const twoTone = width >= 200 && (tone === "dos-tintas" || tone === "dos-tintas-oscuro");
+  const twoTone = !micro && (tone === "dos-tintas" || tone === "dos-tintas-oscuro");
   const base = tone === "crema" || tone === "dos-tintas-oscuro" ? CREAM : INK;
   const height = (width * LOGO_HEIGHT) / LOGO_WIDTH;
 
