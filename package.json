@@ -17,12 +17,12 @@
     "@vercel/speed-insights": "^2.1.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
-    "next": "16.2.6",
+    "next": "16.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.76.1",
     "sonner": "^2.0.7",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -32,9 +32,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.4.6",
     "pg": "^8.23.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "zod": "$zod"
   }
 }

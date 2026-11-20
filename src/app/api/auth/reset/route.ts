@@ -1,4 +1,5 @@
 import { forgotInput, forgotPassword, resetInput, resetPassword } from "@/server/auth";
+import { ipFingerprint } from "@/server/http";
 import { endpoint } from "@/server/route";
 
 /** Paso 1: pedir el código. Responde igual exista o no la cuenta. */
@@ -6,8 +7,8 @@ export const PUT = endpoint({
   scope: "forgot",
   max: 4,
   schema: forgotInput,
-  run: async ({ input }) => {
-    await forgotPassword(input.email);
+  run: async ({ request, input }) => {
+    await forgotPassword(input.email, ipFingerprint(request));
     return { ok: true };
   },
 });

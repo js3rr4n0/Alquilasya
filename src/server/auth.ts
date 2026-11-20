@@ -209,7 +209,17 @@ async function consumeCode(userId: string, purpose: Purpose, value: string) {
 
 /* ——— Altas, entradas y verificación ——— */
 
-export async function register(input: z.infer<typeof registerInput>) {
+/** Altas por conexión: frena la creación masiva de cuentas (y el gasto de correos). */
+const SIGNUPS_PER_HOUR = 5;
+const SIGNUPS_PER_DAY = 15;
+
+export async function register(input: z.infer<typeof registerInput>, ip: string) {
+  if (
+    !(await allow(`registro:ip:${ip}`, SIGNUPS_PER_HOUR, 60)) ||
+    !(await allow(`registro:ip-dia:${ip}`, SIGNUPS_PER_DAY, 24 * 60))
+  ) {
+    throw new AuthError("Se crearon demasiadas cuentas desde esta conexión. Intenta más tarde.", 429);
+  }
   let row: UserRow;
   try {
     const rows = await query<UserRow>(
@@ -233,9 +243,19 @@ export async function register(input: z.infer<typeof registerInput>) {
   return { user: toUser(row), mailError };
 }
 
-export async function login(input: z.infer<typeof loginInput>) {
-  const key = `entrar:${input.email}`;
-  if (!(await allow(key, 8, 15))) {
+/**
+ * Límites de entrada:
+ * - por correo y conexión (8 en 15 min): quien adivina contraseñas desde una conexión
+ *   se frena, pero no puede bloquearle la entrada al dueño, que entra desde otra;
+ * - por conexión (30 en 15 min, sin importar el correo): frena a quien prueba muchas cuentas;
+ * - por correo desde todas las conexiones (40 por hora): frena ataques repartidos.
+ */
+export async function login(input: z.infer<typeof loginInput>, ip: string) {
+  const key = `entrar:${input.email}:${ip}`;
+  if (!(await allow(`entrar:ip:${ip}`, 30, 15))) {
+    throw new AuthError("Demasiados intentos desde esta conexión. Espera 15 minutos.", 429);
+  }
+  if (!(await allow(key, 8, 15)) || !(await allow(`entrar:correo:${input.email}`, 40, 60))) {
     throw new AuthError("Demasiados intentos. Espera 15 minutos o cambia tu contraseña.", 429);
   }
   const rows = await query<UserRow & { password_hash: string }>(
@@ -246,6 +266,7 @@ export async function login(input: z.infer<typeof loginInput>) {
   const ok = await verifyPassword(input.password, row?.password_hash ?? (await dummyHash()));
   if (!row || !ok) throw new AuthError("Correo o contraseña incorrectos.", 401);
   await forget(key);
+  await forget(`entrar:correo:${input.email}`);
   await startSession(row.id);
   return toUser(row);
 }
@@ -266,7 +287,9 @@ export async function verifyEmail(user: User, value: string) {
 }
 
 /** Siempre responde igual, exista o no la cuenta, para no revelar quién está registrado. */
-export async function forgotPassword(address: string) {
+export async function forgotPassword(address: string, ip?: string) {
+  // Pedir códigos manda correos: también se limita por conexión.
+  if (ip && !(await allow(`olvido:ip:${ip}`, 10, 60))) return;
   const rows = await query<UserRow>(`SELECT ${USER_COLUMNS} FROM users WHERE email = $1`, [address]);
   if (!rows[0]) return;
   await issueCode(rows[0], "restablecer").catch((error) => {
@@ -292,7 +315,7 @@ export async function resetPassword(input: z.infer<typeof resetInput>) {
     [row.id, await hashPassword(input.password)],
   );
   await query("DELETE FROM sessions WHERE user_id = $1", [row.id]);
-  await forget(`entrar:${input.email}`);
+  await forget(`entrar:correo:${input.email}`);
   await startSession(row.id);
   return toUser(updated[0]);
 }
