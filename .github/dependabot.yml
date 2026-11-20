@@ -1,0 +1,22 @@
+# Revisa cada semana si hay versiones nuevas o arreglos de seguridad en las
+# dependencias y abre un pull request por grupo. Los de seguridad llegan apenas
+# se publican (requiere activar «Dependabot security updates» en Settings → Code security).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/El_Salvador
+    open-pull-requests-limit: 5
+    groups:
+      next-y-react:
+        patterns: ["next", "eslint-config-next", "react", "react-dom", "@types/react*"]
+      menores:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
