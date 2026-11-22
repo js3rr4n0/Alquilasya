@@ -1152,9 +1152,16 @@ export function PlanEditor({
 
         {/* Lista de espacios: se toca uno para ponerle medidas y fotos */}
         <div>
-          <p className="mb-2 text-[14px] text-grafito-600">
-            Toca un espacio (aquí o en el plano) para poner sus medidas y fotos.
-          </p>
+          {floor.rooms.length === 0 ? (
+            <p className="rounded-card bg-crema-050 px-4 py-5 text-[15px] text-grafito-700 ring-1 ring-arena-200">
+              Todavía no hay espacios. Toca <strong className="font-semibold text-negro">«Añadir espacio»</strong> y
+              elige sala, cuarto, baño, cocina… Cada uno aparece en el plano y luego le pones medidas y fotos.
+            </p>
+          ) : (
+            <p className="mb-2 text-[14px] text-grafito-600">
+              Toca un espacio (aquí o en el plano) para poner sus medidas y fotos.
+            </p>
+          )}
           <ul className="space-y-2">
             {floor.rooms.map((r) => {
               const open = r.id === selected?.id;
@@ -1306,7 +1313,9 @@ export function PlanEditor({
         <div className="rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
           {roomEditor ?? (
             <p className="text-[14px] text-grafito-600">
-              Toca un espacio del plano para editar sus metros y subir sus fotos.
+              {floor.rooms.length === 0
+                ? "Empieza a la izquierda: toca o arrastra al plano cada espacio que tiene la casa (sala, cuartos, baños, cocina…)."
+                : "Toca un espacio del plano para editar sus metros y subir sus fotos."}
             </p>
           )}
         </div>

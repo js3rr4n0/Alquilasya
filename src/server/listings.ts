@@ -5,6 +5,7 @@ import type { Listing, ListingStatus } from "@/data/types";
 import { query } from "@/lib/db";
 import { sendListingFlagged, mailConfigured } from "./mail";
 import { reviewListing } from "./moderation";
+import { approx } from "@/lib/approx";
 import { summaryFrom } from "@/lib/summary";
 
 /* ——— Validación de lo que llega desde el formulario de publicar ——— */
@@ -159,7 +160,11 @@ export async function listPublishedIn(place: { districtId?: number; department?:
       LIMIT 60`,
     [place.districtId ?? null, place.department ?? null],
   );
-  return rows.map(toListing);
+  // Páginas públicas por zona: ubicación aproximada.
+  return rows.map((r) => {
+    const l = toListing(r);
+    return { ...l, lat: approx(l.lat), lng: approx(l.lng) };
+  });
 }
 
 /** Lo mínimo de cada publicado, para el sitemap y para saber qué zonas tienen oferta. */
@@ -187,7 +192,13 @@ export async function getListing(
   const mine = Boolean(userId) && userId === row.user_id;
   // Lo no publicado lo ve su dueño; el admin también, para poder revisarlo.
   if (row.status !== "publicada" && !mine && !admin) return null;
-  return { ...toListing(row), isNew: mine || undefined };
+  const listing = toListing(row);
+  // El público recibe la ubicación aproximada; el dueño y el admin, la exacta.
+  if (!mine && !admin) {
+    listing.lat = approx(listing.lat);
+    listing.lng = approx(listing.lng);
+  }
+  return { ...listing, isNew: mine || undefined };
 }
 
 type Place = { district: string; municipality: string; department: string };

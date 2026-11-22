@@ -383,3 +383,12 @@
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
+
+/* iPhone hace zoom al tocar un campo con letra menor de 16 px: en pantallas chicas, todos a 16 px. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

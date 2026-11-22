@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CONDITION_FILTERS } from "@/data/conditions";
 import type { ListingSummary, MapPoint } from "@/data/types";
 import { query } from "@/lib/db";
+import { approx } from "@/lib/approx";
 import { districtsOf, parseZone } from "@/lib/geo";
 
 /**
@@ -132,8 +133,9 @@ export async function searchListings(p: SearchParams) {
     bedrooms: r.bedrooms,
     bathrooms: Number(r.bathrooms),
     area: Number(r.area),
-    lat: r.lat,
-    lng: r.lng,
+    // Ubicación aproximada (~330 m): el público no recibe la exacta.
+    lat: approx(r.lat),
+    lng: approx(r.lng),
     cover: r.cover ?? "",
     prices: r.prices ?? {},
     conditions: r.conditions ?? [],
@@ -160,8 +162,8 @@ export async function searchListings(p: SearchParams) {
     points = pts.map((x) => ({
       id: x.id,
       title: x.title,
-      lat: x.lat,
-      lng: x.lng,
+      lat: approx(x.lat),
+      lng: approx(x.lng),
       prices: x.price === null ? {} : { [p.plazo]: Number(x.price) },
     }));
   }
