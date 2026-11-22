@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { hasDatabase, isUniqueViolation, query } from "@/lib/db";
-import { sendCode } from "./mail";
+import { sendCode, sendNoAccount, mailConfigured } from "./mail";
 import { allow, forget } from "./throttle";
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
@@ -291,7 +291,15 @@ export async function forgotPassword(address: string, ip?: string) {
   // Pedir códigos manda correos: también se limita por conexión.
   if (ip && !(await allow(`olvido:ip:${ip}`, 10, 60))) return;
   const rows = await query<UserRow>(`SELECT ${USER_COLUMNS} FROM users WHERE email = $1`, [address]);
-  if (!rows[0]) return;
+  if (!rows[0]) {
+    // Al correo (no a quien pide) se le avisa que no tiene cuenta, como mucho 2 veces por hora.
+    if (mailConfigured() && (await allow(`sin-cuenta:${address}`, 2, 60))) {
+      await sendNoAccount(address).catch((error) =>
+        console.error("forgotPassword sin cuenta", error instanceof Error ? error.message : error),
+      );
+    }
+    return;
+  }
   await issueCode(rows[0], "restablecer").catch((error) => {
     // Un límite alcanzado o un fallo del proveedor no se le cuentan a quien pregunta.
     console.error("forgotPassword", error instanceof Error ? error.message : error);

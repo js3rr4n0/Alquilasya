@@ -149,3 +149,16 @@ ${button(`${SITE_URL}/casa/${encodeURIComponent(r.listingId)}`, "Ver anuncio")} 
   return send(to, `Reporte: ${r.listingTitle} (${r.reason})`, html,
     `${r.listingTitle}\nMotivo: ${r.reason}${r.details ? `\nDetalle: ${r.details}` : ""}\nDe: ${r.reporter}\nReportes abiertos: ${r.open}${r.hidden ? "\nSe ocultó automáticamente." : ""}\n\n${url}`);
 }
+
+/** Alguien pidió cambiar la contraseña de un correo sin cuenta: se le avisa a ese correo (no a quien pidió). */
+export function sendNoAccount(to: string) {
+  const url = `${SITE_URL}/entrar?modo=crear`;
+  const html = layout(
+    "No hay una cuenta con este correo",
+    `Alguien (quizá tú) pidió cambiar la contraseña de AlquilasYa con este correo, pero no tiene cuenta.<br><br>
+Si quieres publicar o escribir a un propietario, crea una en un minuto.<br><br>${button(url, "Crear mi cuenta")}<br><br>
+Si no fuiste tú, ignora este correo.`,
+  );
+  return send(to, "No hay una cuenta de AlquilasYa con este correo", html,
+    `Alguien pidió cambiar la contraseña con este correo, pero no tiene cuenta en AlquilasYa.\n\nCrear una cuenta: ${url}\n\nSi no fuiste tú, ignora este correo.`);
+}

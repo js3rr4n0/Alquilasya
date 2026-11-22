@@ -80,7 +80,7 @@ export function Auth() {
         await call("/api/auth/reset", "PUT", { email: mail });
         setMode("nueva");
         setPassword("");
-        toast.success("Si hay una cuenta con ese correo, le enviamos un código.");
+        setResendIn(60);
         return;
       }
       const data =
@@ -106,6 +106,24 @@ export function Auth() {
     }
   }
 
+  // «Reenviar código» se habilita a los 60 s.
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [resendIn]);
+  async function resend() {
+    setError("");
+    try {
+      await call("/api/auth/reset", "PUT", { email: email.trim() });
+      setResendIn(60);
+      toast.success("Listo, pedimos otro código.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos pedir otro código.");
+    }
+  }
+
   const switchTo = (m: Mode) => {
     setMode(m);
     setError("");
@@ -120,7 +138,7 @@ export function Auth() {
           {mode === "olvide"
             ? "Escribe el correo de tu cuenta y te enviamos un código para elegir una contraseña nueva."
             : mode === "nueva"
-              ? "Escribe el código que llegó a tu correo y tu contraseña nueva."
+              ? "Escribe el código de 6 dígitos que llegó a tu correo y elige tu contraseña nueva."
               : "Para buscar y leer anuncios no hace falta registro. La cuenta sirve para publicar y para chatear."}
         </p>
 
@@ -250,6 +268,30 @@ export function Auth() {
             >
               Olvidé mi contraseña
             </button>
+          )}
+          {mode === "nueva" && (
+            <div className="rounded-ctl bg-crema-100 px-4 py-3 text-[14px] leading-relaxed text-grafito-700 ring-1 ring-arena-200">
+              <p>
+                Si <strong className="font-semibold text-negro">{email.trim()}</strong> tiene cuenta, el código llega en
+                1 o 2 minutos. Revisa también <strong className="font-semibold text-negro">Spam</strong> y{" "}
+                <strong className="font-semibold text-negro">Promociones</strong>.
+              </p>
+              <p className="mt-2">
+                {resendIn > 0 ? (
+                  <span className="text-grafito-600">¿No llegó? Puedes pedir otro en {resendIn} s.</span>
+                ) : (
+                  <button type="button" onClick={resend} className="font-semibold text-terracota-700 underline underline-offset-4">
+                    Reenviar código
+                  </button>
+                )}
+              </p>
+              <p className="mt-2">
+                ¿No tienes cuenta?{" "}
+                <button type="button" onClick={() => switchTo("crear")} className="font-semibold text-terracota-700 underline underline-offset-4">
+                  Créala aquí
+                </button>
+              </p>
+            </div>
           )}
           {(mode === "olvide" || mode === "nueva") && (
             <button

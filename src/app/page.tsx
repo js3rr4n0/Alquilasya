@@ -11,7 +11,7 @@ export const revalidate = 300;
 async function latest(): Promise<ListingSummary[]> {
   if (!hasDatabase()) return [];
   try {
-    return (await searchListings(searchParams.parse({ solo: "0", limite: "8" }))).results;
+    return (await searchListings(searchParams.parse({ solo: "0", limite: "24" }))).results;
   } catch (error) {
     console.error("home", error);
     return [];
