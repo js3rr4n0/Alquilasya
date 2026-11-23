@@ -9,6 +9,7 @@ import { Link, useNavigate } from "../lib/router";
 import { useStore } from "../lib/store";
 import { track } from "../lib/track";
 import { Button, buttonClass, Modal } from "./ui";
+import { HostFacts } from "./HostFacts";
 import { fieldClass } from "./WaitlistForm";
 
 /**
@@ -137,6 +138,12 @@ export function ContactDialog({
         <p className="text-[15px] leading-snug text-grafito-700">
           {listing.title} · {listing.zone}
         </p>
+        {listing.host && (
+          <div className="rounded-ctl bg-crema-100 px-3.5 py-2.5 ring-1 ring-arena-200">
+            <p className="text-[15px] font-semibold text-negro">Le escribes a {listing.contactName ?? "quien publica"}</p>
+            <HostFacts host={listing.host} compact className="mt-1" />
+          </div>
+        )}
         <label className="block">
           <span className="text-[14px] font-medium text-grafito-700">Mensaje</span>
           <textarea

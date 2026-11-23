@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { hasDatabase, isUniqueViolation, query } from "@/lib/db";
+import { isFounder } from "@/lib/founder";
 import { sendCode, sendNoAccount, mailConfigured } from "./mail";
 import { allow, forget } from "./throttle";
 
@@ -30,6 +31,10 @@ export type User = {
   admin: boolean;
   /** Acepta avisos por correo (mensajes nuevos, destacado por vencer…). */
   notices: boolean;
+  /** Cuándo creó la cuenta (ISO). */
+  since: string;
+  /** Se registró antes del 1 de enero de 2027: insignia «Miembro fundador». */
+  founder: boolean;
 };
 
 type UserRow = {
@@ -39,9 +44,10 @@ type UserRow = {
   whatsapp: string | null;
   email_verified_at: string | null;
   email_notices: boolean;
+  created_at: string;
 };
 
-const USER_COLUMNS = "id::text AS id, email, name, whatsapp, email_verified_at, email_notices";
+const USER_COLUMNS = "id::text AS id, email, name, whatsapp, email_verified_at, email_notices, created_at";
 
 function adminEmails() {
   return (process.env.ADMIN_EMAILS ?? "")
@@ -61,6 +67,8 @@ function toUser(row: UserRow): User {
     // Sin verificar no hay admin: nadie se adelanta registrando el correo de otra persona.
     admin: verified && adminEmails().includes(row.email),
     notices: row.email_notices !== false,
+    since: new Date(row.created_at).toISOString(),
+    founder: isFounder(row.created_at),
   };
 }
 
@@ -154,7 +162,7 @@ export async function currentUser(): Promise<User | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token || !hasDatabase()) return null;
   const rows = await query<UserRow>(
-    `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.email_verified_at, u.email_notices
+    `SELECT u.id::text AS id, u.email, u.name, u.whatsapp, u.email_verified_at, u.email_notices, u.created_at
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [digest(token)],

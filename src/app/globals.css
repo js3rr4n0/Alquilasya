@@ -276,6 +276,11 @@
   font-family: var(--font-sans);
 }
 
+/* Los controles de Leaflet (z-index 1000) no deben pasar por encima del encabezado fijo. */
+.leaflet-container {
+  isolation: isolate;
+}
+
 .map-warm .leaflet-tile-pane {
   filter: grayscale(1) sepia(0.22) contrast(0.92) brightness(1.04);
 }
@@ -391,4 +396,12 @@
   select {
     font-size: 16px !important;
   }
+}
+
+/* «Corregir»: el campo exacto queda marcado hasta que lo cambien. */
+.campo-corregir {
+  outline: 3px solid var(--color-aviso);
+  outline-offset: 4px;
+  border-radius: 6px;
+  scroll-margin-top: 160px;
 }

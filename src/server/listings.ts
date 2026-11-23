@@ -4,7 +4,8 @@ import { CONDITION_ORDER } from "@/data/conditions";
 import type { Listing, ListingStatus } from "@/data/types";
 import { query } from "@/lib/db";
 import { sendListingFlagged, mailConfigured } from "./mail";
-import { reviewListing } from "./moderation";
+import { locateIssues, reviewListing } from "./moderation";
+import { FOUNDER_UNTIL } from "@/lib/founder";
 import { approx } from "@/lib/approx";
 import { summaryFrom } from "@/lib/summary";
 
@@ -181,11 +182,26 @@ export async function getListing(
   userId?: string | null,
   admin = false,
 ): Promise<Listing | null> {
-  const rows = await query<ListingRow & { user_id: string | null }>(
-    `SELECT id, status, data, contact_name, published_at, created_at, user_id::text AS user_id,
-            (featured_until > now()) IS TRUE AS promoted
-       FROM listings WHERE id = $1`,
-    [id],
+  const rows = await query<
+    ListingRow & {
+      user_id: string | null;
+      review_reason: string | null;
+      host_month: string | null;
+      host_verified: boolean | null;
+      host_founder: boolean | null;
+      host_listings: number | null;
+    }
+  >(
+    `SELECT l.id, l.status, l.data, l.contact_name, l.published_at, l.created_at, l.user_id::text AS user_id,
+            (l.featured_until > now()) IS TRUE AS promoted, l.review_reason,
+            -- Solo mes y año (hora de El Salvador): es lo único que se muestra.
+            to_char(u.created_at AT TIME ZONE 'America/El_Salvador', 'YYYY-MM') AS host_month,
+            (u.email_verified_at IS NOT NULL) AS host_verified,
+            (u.created_at < $2) AS host_founder,
+            (SELECT count(*)::int FROM listings o WHERE o.user_id = l.user_id AND o.status = 'publicada') AS host_listings
+       FROM listings l LEFT JOIN users u ON u.id = l.user_id
+      WHERE l.id = $1`,
+    [id, FOUNDER_UNTIL],
   );
   const row = rows[0];
   if (!row) return null;
@@ -198,7 +214,27 @@ export async function getListing(
     listing.lat = approx(listing.lat);
     listing.lng = approx(listing.lng);
   }
+  // Quién publica (HU-04): solo datos ciertos que salen de la cuenta, nunca escritos a mano.
+  if (row.host_month) {
+    listing.host = {
+      since: `${row.host_month}-15T12:00:00Z`,
+      verified: Boolean(row.host_verified),
+      founder: Boolean(row.host_founder),
+      listings: row.host_listings ?? 0,
+    };
+  }
+  // El motivo de revisión y dónde corregirlo: solo para su dueño (y el admin).
+  if ((mine || admin) && row.status === "pendiente" && row.review_reason) {
+    listing.review = reviewFor(row.review_reason, row.data);
+  }
   return { ...listing, isNew: mine || undefined };
+}
+
+/** Motivo de revisión guardado + el campo exacto donde se corrige cada cosa. */
+function reviewFor(reason: string, data: Listing): NonNullable<Listing["review"]> {
+  // Un reporte lo revisa una persona: editar no lo publica solo.
+  const reported = reason.startsWith("Reportado por");
+  return { reason, reported, issues: reported ? [] : locateIssues(data) };
 }
 
 type Place = { district: string; municipality: string; department: string };
@@ -359,15 +395,17 @@ export async function getListingForEdit(id: string, userId: string, admin = fals
     contact_name: string;
     contact_whatsapp: string;
     contact_email: string | null;
+    review_reason: string | null;
   }>(
-    `SELECT data, status, contact_name, contact_whatsapp, contact_email
+    `SELECT data, status, contact_name, contact_whatsapp, contact_email, review_reason
        FROM listings WHERE id = $1 AND (user_id = $2 OR $3)`,
     [id, userId, admin],
   );
   const row = rows[0];
   if (!row) return null;
+  const review = row.status === "pendiente" && row.review_reason ? reviewFor(row.review_reason, row.data) : undefined;
   return {
-    listing: { ...row.data, id, status: row.status },
+    listing: { ...row.data, id, status: row.status, review },
     contact: { name: row.contact_name, whatsapp: row.contact_whatsapp, email: row.contact_email ?? "" },
   };
 }
@@ -384,11 +422,17 @@ export class InputError extends Error {}
 /* ——— Panel de quien publica ——— */
 
 export async function accountOverview(userId: string) {
-  const listings = await query(
-    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at, featured_until, review_reason
+  const rows = await query<{ status: string; review_reason: string | null; data: Listing | null }>(
+    `SELECT id, status, title, type, zone, region, price_month, created_at, published_at, edited_at, featured_until, review_reason,
+            CASE WHEN status = 'pendiente' AND review_reason IS NOT NULL THEN data END AS data
        FROM listings WHERE user_id = $1 ORDER BY created_at DESC`,
     [userId],
   );
+  // Para cada anuncio en revisión, el campo exacto donde se corrige (botón «Corregir»).
+  const listings = rows.map(({ data, ...l }) => ({
+    ...l,
+    review: data && l.review_reason ? reviewFor(l.review_reason, data) : null,
+  }));
   const payments = await query(
     `SELECT id, listing_id, listing_title, plan, days, amount, status, created_at, paid_at
        FROM payments WHERE user_id = $1 AND status = 'pagada' ORDER BY created_at DESC LIMIT 30`,

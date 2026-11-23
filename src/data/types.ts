@@ -118,6 +118,33 @@ export type Listing = {
   colonia?: string;
   /** Public name of whoever published a real listing. */
   contactName?: string;
+  /** Lo que se sabe de verdad de quien publica, sacado de su cuenta (HU-04). */
+  host?: Host;
+  /** Solo para su dueño: por qué está en revisión y dónde se corrige cada cosa. */
+  review?: ListingReview;
+};
+
+export type Host = {
+  /** Cuándo creó su cuenta (ISO). */
+  since: string;
+  /** Confirmó su correo con un código. */
+  verified: boolean;
+  /** Se registró antes del 1 de enero de 2027. */
+  founder: boolean;
+  /** Anuncios publicados ahora mismo. */
+  listings: number;
+};
+
+/** Paso del formulario de publicar donde se corrige algo. */
+export type FixStep = "datos" | "plano" | "condiciones" | "precios";
+
+export type ListingReview = {
+  /** Motivo tal como quedó guardado. */
+  reason: string;
+  /** Lo reportó alguien: lo revisa una persona, editar no lo publica solo. */
+  reported: boolean;
+  /** Cada motivo con el paso y el campo exactos donde se corrige. */
+  issues: { reason: string; step: FixStep; field: string; where: string }[];
 };
 
 export type ListingStatus = "pendiente" | "publicada" | "rechazada" | "pausada";

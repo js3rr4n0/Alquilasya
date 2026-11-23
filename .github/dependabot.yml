@@ -11,6 +11,11 @@ updates:
       time: "09:00"
       timezone: America/El_Salvador
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7 todavía no funciona con el revisor de código (typescript-eslint
+      # acepta hasta 6.0). Quitar esta regla cuando typescript-eslint lo soporte.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     groups:
       next-y-react:
         patterns: ["next", "eslint-config-next", "react", "react-dom", "@types/react*"]

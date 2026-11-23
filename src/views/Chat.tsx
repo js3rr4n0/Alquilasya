@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BookmarkPlus, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FounderBadge } from "../components/HostFacts";
 import { Avatar, Button, ButtonLink } from "../components/ui";
+import { memberSince } from "../lib/founder";
 import { cx, money, time } from "../lib/format";
 import { photoUrl } from "../lib/photos";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
@@ -18,6 +20,9 @@ type Conversation = {
   price_month: string | null;
   i_am_owner: boolean;
   other_name: string;
+  other_since: string;
+  other_verified: boolean;
+  other_founder: boolean;
   last_message_at: string;
   last_body: string | null;
   last_mine: boolean | null;
@@ -26,6 +31,21 @@ type Conversation = {
 type Message = { id: string; mine: boolean; body: string; created_at: string };
 
 const day = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
+
+/** Respuestas de un toque: lo que más se escribe en cada lado de la conversación. */
+const QUICK = {
+  owner: [
+    "Sí, está disponible.",
+    "¿Cuándo quieres verla?",
+    "¿Para cuántas personas sería y desde qué fecha?",
+    "Lo siento, ya se alquiló. Gracias por escribir.",
+  ],
+  renter: [
+    "¿Sigue disponible?",
+    "¿Cuándo puedo ir a verla?",
+    "¿Qué requisitos piden para alquilar?",
+  ],
+};
 function stamp(iso: string) {
   const d = new Date(iso);
   return d.toDateString() === new Date().toDateString() ? time(d) : day.format(d).replace(".", "");
@@ -42,7 +62,11 @@ export function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const lastId = useRef("0");
+  /** Respuestas propias guardadas en la cuenta. */
+  const [saved, setSaved] = useState<string[]>([]);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   // Los efectos dependen del id, no del objeto: refrescar la cuenta no reinicia el chat.
   const userId = user?.id;
   const endRef = useRef<HTMLDivElement>(null);
@@ -93,6 +117,43 @@ export function Chat() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, activeId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch("/api/chat/respuestas")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { replies?: string[] } | null) => d?.replies && setSaved(d.replies))
+      .catch(() => {});
+  }, [userId]);
+
+  /** Un toque: la respuesta queda escrita para revisarla o completarla antes de enviar. */
+  function pickReply(reply: string) {
+    setText(reply);
+    window.setTimeout(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(reply.length, reply.length);
+    }, 0);
+  }
+
+  async function storeReplies(next: string[], done: string) {
+    const before = saved;
+    setSaved(next);
+    const res = await fetch("/api/chat/respuestas", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ replies: next }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setSaved(before);
+      const data = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
+      return setError(data?.error ?? "No se pudo guardar la respuesta.");
+    }
+    setError("");
+    setNotice(done);
+    window.setTimeout(() => setNotice(""), 2500);
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -222,7 +283,16 @@ export function Chat() {
                 />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[16px] font-semibold">{active.other_name}</p>
+                <p className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-[16px] font-semibold">{active.other_name}</span>
+                  {active.other_founder && <FounderBadge className="shrink-0" />}
+                </p>
+                <p className="flex items-center gap-1 truncate text-[13px] text-grafito-600">
+                  {active.other_verified && <BadgeCheck className="size-3.5 shrink-0 text-exito" aria-label="Correo verificado" />}
+                  <span className="truncate">
+                    En AlquilasYa desde {memberSince(active.other_since)}
+                  </span>
+                </p>
                 <Link
                   to={`/casa/${active.listing_id}`}
                   className="block truncate text-[14px] text-grafito-600 underline-offset-4 hover:underline"
@@ -259,11 +329,48 @@ export function Chat() {
                   {error}
                 </p>
               )}
+              <div
+                role="group"
+                aria-label="Respuestas rápidas"
+                className="-mx-3 mb-2.5 flex gap-2 overflow-x-auto px-3 pb-0.5 no-scrollbar sm:-mx-6 sm:px-6"
+              >
+                {QUICK[active.i_am_owner ? "owner" : "renter"]
+                  .filter((q) => !saved.includes(q))
+                  .map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => pickReply(q)}
+                      className="shrink-0 whitespace-nowrap rounded-full bg-crema-100 px-3.5 py-1.5 text-[14px] text-grafito-700 ring-1 ring-piedra-250 transition hover:text-negro hover:ring-negro"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                {saved.map((q) => (
+                  <span
+                    key={q}
+                    className="inline-flex max-w-[260px] shrink-0 items-center rounded-full bg-arena-200 text-[14px] text-negro ring-1 ring-piedra-250"
+                  >
+                    <button type="button" onClick={() => pickReply(q)} title={q} className="truncate py-1.5 pl-3.5 pr-1.5 text-left">
+                      {q}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => storeReplies(saved.filter((x) => x !== q), "Respuesta borrada.")}
+                      aria-label={`Borrar la respuesta «${q}»`}
+                      className="mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-grafito-600 hover:bg-crema-100 hover:text-error"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
               <div className="flex items-end gap-2">
                 <label htmlFor="chat-input" className="sr-only">
                   Escribe un mensaje
                 </label>
                 <textarea
+                  ref={inputRef}
                   id="chat-input"
                   rows={1}
                   value={text}
@@ -282,9 +389,20 @@ export function Chat() {
                   Enviar <Send className="size-4" />
                 </Button>
               </div>
-              <p className="mt-2 text-[14px] text-grafito-600">
-                No pagues ni envíes documentos antes de visitar el inmueble.
-              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <p className="text-[14px] text-grafito-600">
+                  {notice || "No pagues ni envíes documentos antes de visitar el inmueble."}
+                </p>
+                {text.trim() && text.trim().length <= 300 && !saved.includes(text.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => storeReplies([...saved, text.trim()].slice(-12), "Guardada en tus respuestas rápidas.")}
+                    className="inline-flex items-center gap-1 text-[14px] font-medium text-grafito-700 underline underline-offset-4 hover:text-negro"
+                  >
+                    <BookmarkPlus className="size-4" /> Guardar como respuesta rápida
+                  </button>
+                )}
+              </div>
             </form>
           </>
         )}
