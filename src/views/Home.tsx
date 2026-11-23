@@ -12,7 +12,7 @@ import { ButtonLink, Container, Eyebrow, Folio, SectionTitle } from "../componen
 import { DEMO_CONDITIONS, DEMO_PLAN, DEMO_PLAN_SMALL } from "../data/demo";
 import { GUIDES } from "../data/guides";
 import type { ListingSummary } from "../data/types";
-import { DURATIONS, type DurationKey } from "../lib/durations";
+import { DURATION, DURATIONS, type DurationKey } from "../lib/durations";
 import { cx } from "../lib/format";
 import { departments } from "../lib/geo";
 import { FAQ } from "../lib/site";
@@ -30,7 +30,9 @@ const USES: Record<DurationKey, string> = {
 export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
   const { duration, setDuration } = useStore();
   // Los más recientes llegan en el HTML desde el servidor (se renuevan cada pocos minutos).
-  const featured = initial.slice(0, 4);
+  // Se muestran solo los que se alquilan por el plazo elegido.
+  const featured = initial.filter((l) => l.prices[duration]).slice(0, 4);
+  const anyListing = initial.length > 0;
   const loaded = true;
 
   return (
@@ -123,14 +125,16 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
             <SectionTitle
               index="01"
               kicker="Alquileres"
-              title={featured.length ? "Recién publicados." : "Los primeros anuncios están por llegar."}
+              title={anyListing ? "Recién publicados." : "Los primeros anuncios están por llegar."}
               lead={
                 featured.length
                   ? "Cambia la duración y mira el total para ese plazo."
-                  : "AlquilasYa está empezando en El Salvador. Si tienes un inmueble, publícalo gratis y sé de los primeros."
+                  : anyListing
+                    ? `Aún no hay alquileres por ${DURATION[duration].label}. Prueba otro plazo o publica el tuyo.`
+                    : "AlquilasYa está empezando en El Salvador. Si tienes un inmueble, publícalo gratis y sé de los primeros."
               }
             />
-            {featured.length > 0 ? (
+            {anyListing ? (
               <div className="flex flex-wrap items-center gap-3">
                 <DurationPicker value={duration} onChange={setDuration} compact />
                 <ButtonLink to="/explorar" variant="outline" size="md">
@@ -148,6 +152,16 @@ export function Home({ initial = [] }: { initial?: ListingSummary[] }) {
             )}
           </div>
 
+          {anyListing && featured.length === 0 && (
+            <div className="mt-10 flex flex-wrap items-center gap-3 rounded-card bg-crema-050 p-6 ring-1 ring-arena-200">
+              <p className="mr-auto text-[16px] text-grafito-700">
+                Aún no hay alquileres por {DURATION[duration].label}.
+              </p>
+              <ButtonLink to="/publicar" variant="primary" size="sm">
+                Publica el tuyo <ArrowRight className="size-4" />
+              </ButtonLink>
+            </div>
+          )}
           {featured.length > 0 && (
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {featured.map((l, i) => (

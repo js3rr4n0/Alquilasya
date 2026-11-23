@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link, useNavigate, useSearchParams } from "@/lib/router";
 import { ConditionsSheet } from "../components/ConditionsSheet";
@@ -59,132 +59,17 @@ const DESCRIPTION_TOPICS: [string, string][] = [
   ["Contrato y requisitos", "Contrato y requisitos: "],
 ];
 
+/** Sin cuartos de ejemplo: lo publicado lo dice el dueño, nada inventado por defecto. */
 function starterFloors(): Floor[] {
-  return [
-    {
-      id: "pb",
-      name: "Planta única",
-      width: 14,
-      height: 10,
-      rooms: [
-        {
-          id: "s1",
-          type: "sala",
-          name: "Sala",
-          x: 0,
-          y: 0,
-          w: 5.5,
-          h: 4.5,
-          photos: [],
-          features: ["Luz natural", "Ventilador de techo"],
-        },
-        {
-          id: "s2",
-          type: "comedor",
-          name: "Comedor",
-          x: 5.5,
-          y: 0,
-          w: 3.5,
-          h: 4.5,
-          photos: [],
-          features: ["Mesa para 6"],
-        },
-        {
-          id: "s3",
-          type: "cocina",
-          name: "Cocina",
-          x: 9,
-          y: 0,
-          w: 5,
-          h: 4.5,
-          photos: [],
-          features: ["Estufa de gas", "Refrigeradora"],
-        },
-        {
-          id: "s4",
-          type: "dormitorio",
-          name: "Dormitorio principal",
-          x: 0,
-          y: 4.5,
-          w: 4.5,
-          h: 4,
-          photos: [],
-          features: ["Cama king", "Clóset", "Aire acondicionado"],
-        },
-        {
-          id: "s5",
-          type: "dormitorio",
-          name: "Dormitorio 2",
-          x: 4.5,
-          y: 4.5,
-          w: 4,
-          h: 4,
-          photos: [],
-          features: ["Cama queen", "Clóset"],
-        },
-        {
-          id: "s6",
-          type: "bano",
-          name: "Baño",
-          x: 8.5,
-          y: 4.5,
-          w: 2.5,
-          h: 2.5,
-          photos: [],
-          features: ["Ducha", "Agua caliente"],
-        },
-        {
-          id: "s7",
-          type: "terraza",
-          name: "Terraza",
-          x: 8.5,
-          y: 7,
-          w: 5.5,
-          h: 3,
-          photos: [],
-          features: ["Techada", "Hamacas"],
-          
-        },
-      ],
-    },
-  ];
+  return [{ id: "pb", name: "Planta única", width: 10, height: 8, rooms: [] }];
 }
 
+/** Las once condiciones empiezan sin responder (value vacío = sin responder). */
 function starterConditions(): Condition[] {
-  return [
-    {
-      key: "amueblado",
-      status: "si",
-      value: "Amueblada",
-      detail: "Lista para entrar, con cocina equipada y ropa de cama.",
-    },
-    { key: "mascotas", status: "si", value: "Sí, hasta 2", detail: "Perros o gatos bienvenidos." },
-    { key: "invitados", status: "si", value: "Sí", detail: "Hasta 3 noches seguidas sin avisar." },
-    {
-      key: "fumar",
-      status: "parcial",
-      value: "Solo en la terraza",
-      detail: "Dentro de la casa, no.",
-    },
-    {
-      key: "negocio",
-      status: "parcial",
-      value: "Oficina en casa",
-      detail: "Trabajo remoto sí; atención al público no.",
-    },
-    {
-      key: "eventos",
-      status: "parcial",
-      value: "Reuniones pequeñas",
-      detail: "Hasta 12 personas y hasta las 22:00.",
-    },
-    { key: "ninos", status: "si", value: "Sí" },
-    { key: "silencio", status: "parcial", value: "22:00 – 7:00" },
-    { key: "estacionamiento", status: "si", value: "2 vehículos", detail: "Cochera techada." },
-    { key: "accesibilidad", status: "si", value: "Una sola planta" },
-    { key: "subarriendo", status: "no", value: "No" },
-  ];
+  return CONDITION_ORDER.map((key) => ({ key, status: "no" as ConditionStatus, value: "" }));
 }
+
+const DRAFT_KEY = "alquilasya.borrador.v1";
 
 export function Publish() {
   const { user, authLoaded } = useStore();
@@ -213,6 +98,12 @@ export function Publish() {
   const [contactEmail, setContactEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
+  /** Lo que falta en el paso actual al tocar «Siguiente». */
+  const [stepProblems, setStepProblems] = useState<string[]>([]);
+  const [availableFrom, setAvailableFrom] = useState(isoDay(new Date()));
+  const [editContact, setEditContact] = useState(false);
+  const [draftAt, setDraftAt] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
 
   // Los datos de contacto parten de la cuenta; se pueden cambiar para este anuncio.
   useEffect(() => {
@@ -235,6 +126,68 @@ export function Publish() {
     { label: "Muebles", included: false },
     { label: "Parqueo", included: false },
   ]);
+
+  /* ——— Borrador: nunca se pierde lo que ya se escribió (se guarda en este navegador) ——— */
+  const draft = {
+    title, type, department, districtId, colonia, point, cover, description,
+    contactName, contactWhatsapp, contactEmail, floors, conditions, rules, prices, deposit, includes, availableFrom,
+  };
+  useEffect(() => {
+    if (editing) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw) as Partial<typeof draft> & { savedAt?: string };
+      if (d.title !== undefined) setTitle(d.title);
+      if (d.type) setType(d.type);
+      if (d.department) setDepartment(d.department);
+      if (d.districtId) setDistrictId(d.districtId);
+      if (d.colonia !== undefined) setColonia(d.colonia);
+      if (d.point !== undefined) setPoint(d.point);
+      if (d.cover !== undefined) setCover(d.cover);
+      if (d.description !== undefined) setDescription(d.description);
+      if (d.contactName) setContactName(d.contactName);
+      if (d.contactWhatsapp) setContactWhatsapp(d.contactWhatsapp);
+      if (d.contactEmail) setContactEmail(d.contactEmail);
+      if (d.floors?.length) setFloors(d.floors);
+      if (d.conditions?.length) setConditions(d.conditions);
+      if (d.rules) setRules(d.rules);
+      if (d.prices) setPrices(d.prices);
+      if (d.deposit !== undefined) setDeposit(d.deposit);
+      if (d.includes) setIncludes(d.includes);
+      if (d.availableFrom && d.availableFrom >= isoDay(new Date())) setAvailableFrom(d.availableFrom);
+      setDraftAt(d.savedAt ?? null);
+    } catch {
+      /* borrador dañado o sin almacenamiento: se empieza de cero */
+    }
+    // Solo al abrir el formulario.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const draftJson = JSON.stringify(draft);
+  const firstJson = useRef(draftJson);
+  useEffect(() => {
+    if (editing) return;
+    if (!dirty && draftJson === firstJson.current) return;
+    if (!dirty) setDirty(true);
+    const t = window.setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...JSON.parse(draftJson), savedAt: new Date().toISOString() }));
+      } catch {
+        /* almacenamiento lleno o bloqueado */
+      }
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [draftJson, editing, dirty]);
+  function discardDraft() {
+    if (!window.confirm("¿Borrar el borrador y empezar de cero?")) return;
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* nada */
+    }
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa: formulario limpio
+    window.location.assign("/publicar");
+  }
 
   // Modo edición: se cargan la ficha y el contacto del anuncio propio.
   useEffect(() => {
@@ -267,6 +220,7 @@ export function Publish() {
           setPrices(l.prices);
           setDeposit(l.deposit);
           setIncludes(l.includes);
+          if (l.availableFrom) setAvailableFrom(l.availableFrom);
           setContactName(d.contact.name);
           setContactWhatsapp(d.contact.whatsapp);
           setContactEmail(d.contact.email);
@@ -280,6 +234,7 @@ export function Publish() {
   }, [editing, user?.verified]);
 
   function go(next: StepKey) {
+    setStepProblems([]);
     setParams(editing ? { paso: next, editar: editing } : { paso: next });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -326,23 +281,47 @@ export function Publish() {
   const district = getDistrict(districtId);
   const zoneName = district?.name ?? "";
 
-  /** Lo que falta para poder enviar, en palabras de quien publica. */
-  function missing() {
+  /** Lo que falta en cada paso, en palabras de quien publica. */
+  function missingFor(k: StepKey): string[] {
     const list: string[] = [];
-    const offered = Object.values(prices);
-    if (title.trim().length < 3) list.push("Ponle un nombre a la propiedad (paso 1).");
-    if (!district) list.push("Elige el distrito donde está la propiedad (paso 1).");
-    if (contactName.trim().length < 2) list.push("Escribe tu nombre de contacto (paso 1).");
-    if (!/^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()))
-      list.push("Escribe un WhatsApp válido para que te contacten (paso 1).");
-    if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim()))
-      list.push("Revisa el correo de contacto (paso 1).");
-    if (offered.length === 0) list.push("Activa al menos un plazo con su precio (paso 4).");
-    else if (offered.some((v) => !v || v < 1))
-      list.push("Pon el precio de cada plazo que activaste (paso 4).");
-    if (conditions.some((c) => !c.value.trim()))
-      list.push("Responde las once condiciones (paso 3).");
+    if (k === "datos") {
+      if (title.trim().length < 3) list.push("Ponle un título al anuncio.");
+      if (!district) list.push("Elige el distrito donde está la propiedad.");
+      if (contactName.trim().length < 2) list.push("Escribe tu nombre de contacto.");
+      if (!/^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()))
+        list.push("Escribe un WhatsApp válido para avisarte de los mensajes.");
+      if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim()))
+        list.push("Revisa el correo de contacto.");
+    }
+    if (k === "plano" && !floors.some((f) => f.rooms.length > 0)) {
+      list.push("Agrega al menos un espacio (sala, cuarto, baño…).");
+    }
+    if (k === "condiciones") {
+      const pending = conditions.filter((c) => !c.value.trim()).length;
+      if (pending) list.push(`Responde las condiciones que faltan (${pending} de ${conditions.length}).`);
+    }
+    if (k === "precios") {
+      const offered = Object.values(prices);
+      if (offered.length === 0) list.push("Activa al menos un plazo con su precio.");
+      else if (offered.some((v) => !v || v < 1)) list.push("Pon el precio de cada plazo que activaste.");
+    }
     return list;
+  }
+
+  /** Todo lo que falta, con el paso donde se arregla. */
+  function missing() {
+    return STEPS.flatMap((st) => missingFor(st.key).map((m) => `${m} (paso ${Number(st.n)})`));
+  }
+
+  /** «Siguiente»: si falta algo de este paso, se dice aquí mismo y no se avanza. */
+  function next() {
+    const list = missingFor(step);
+    setStepProblems(list);
+    if (list.length) {
+      window.setTimeout(() => document.getElementById("faltan-paso")?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
+      return;
+    }
+    go(STEPS[stepIndex + 1].key);
   }
 
   async function finish() {
@@ -381,7 +360,7 @@ export function Publish() {
             : undefined,
         })),
       })),
-      availableFrom: isoDay(new Date()),
+      availableFrom,
       plan: "gratis",
       contact: {
         name: contactName.trim(),
@@ -404,6 +383,13 @@ export function Publish() {
         throw new Error(data.error ?? "No pudimos guardar tu anuncio. Intenta de nuevo.");
       }
       track(editing ? "anuncio_editado" : "anuncio_enviado", { tipo: type, zona: zoneName });
+      if (!editing) {
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {
+          /* sin almacenamiento */
+        }
+      }
       if (data.status === "publicada") toast.success(editing ? "Cambios guardados y publicados." : "¡Listo! Tu anuncio ya está publicado.");
       else if (data.status === "pendiente" && data.reasons?.length)
         toast.warning(`Tu anuncio quedó en revisión: ${data.reasons.join(" · ")}. Corrígelo con «Editar» y se publica solo.`, { duration: 12000 });
@@ -519,6 +505,21 @@ export function Publish() {
       </section>
 
       <Container className="py-10 lg:py-14">
+        {!editing && (
+          <p className="-mt-4 mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-grafito-600">
+            <span>
+              <Check className="mr-1 inline size-4 text-exito" aria-hidden />
+              {draftAt
+                ? `Seguimos con tu borrador del ${new Intl.DateTimeFormat("es", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(draftAt))}.`
+                : "Lo que escribas se guarda solo en este navegador, aunque cierres la página."}
+            </span>
+            {(draftAt || dirty) && (
+              <button type="button" onClick={discardDraft} className="font-medium text-grafito-700 underline underline-offset-4">
+                Empezar de cero
+              </button>
+            )}
+          </p>
+        )}
         {/* ——— STEP 1: BASIC DATA ——— */}
         {step === "datos" && (
           <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
@@ -540,6 +541,15 @@ export function Publish() {
                     onChange={(e) => setTitle(e.target.value)}
                     className={fieldClass}
                   />
+                  {district && !title.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setTitle(`${type} en ${colonia.trim() ? `${colonia.trim()}, ` : ""}${district.name}`)}
+                      className="mt-2 text-left text-[14px] text-terracota-700 underline underline-offset-4"
+                    >
+                      Usar «{type} en {colonia.trim() ? `${colonia.trim()}, ` : ""}{district.name}»
+                    </button>
+                  )}
                 </label>
 
                 <label className="block">
@@ -690,6 +700,18 @@ export function Publish() {
                   Tu WhatsApp no aparece en el anuncio ni se muestra a quien te escribe: los mensajes
                   llegan al chat privado del sitio. Lo usamos solo para avisarte sobre tu anuncio.
                 </p>
+                {/* Lo que ya sabemos de la cuenta no se vuelve a preguntar. */}
+                {!editContact && contactName.trim().length >= 2 && /^\+?[0-9\s\-]{8,20}$/.test(contactWhatsapp.trim()) ? (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-ctl bg-crema-100 px-4 py-3 ring-1 ring-arena-200">
+                    <p className="text-[15px] text-grafito-700">
+                      Te escriben como <strong className="font-semibold text-negro">{contactName}</strong> · avisos al{" "}
+                      <strong className="font-semibold tabular-nums text-negro">{contactWhatsapp}</strong>
+                    </p>
+                    <button type="button" onClick={() => setEditContact(true)} className="text-[14px] font-semibold text-terracota-700 underline underline-offset-4">
+                      Cambiar
+                    </button>
+                  </div>
+                ) : (
                 <div className="mt-4 grid gap-5 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-[14px] font-medium text-grafito-700">Tu nombre</span>
@@ -726,6 +748,7 @@ export function Publish() {
                     />
                   </label>
                 </div>
+                )}
               </div>
             </div>
 
@@ -795,6 +818,12 @@ export function Publish() {
             <div>
               <Eyebrow index="03">Las once condiciones</Eyebrow>
               <h2 className="head mt-2 text-[32px]">Dilo todo desde el principio.</h2>
+              <p className="mt-2 text-[15px] text-grafito-700">
+                Toca una opción en cada una. Respondidas:{" "}
+                <strong className="font-semibold tabular-nums text-negro">
+                  {conditions.filter((c) => c.value.trim()).length} de {conditions.length}
+                </strong>
+              </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {CONDITION_ORDER.map((key) => {
@@ -810,9 +839,10 @@ export function Publish() {
                         <Segmented
                           label={meta.question}
                           size="sm"
-                          value={current.status}
+                          // Sin responder, ninguna opción aparece marcada.
+                          value={(current.value.trim() ? current.status : "") as ConditionStatus}
                           onChange={(status: ConditionStatus) =>
-                            updateCondition(key, { status, value: meta.defaults[status] })
+                            updateCondition(key, { status, value: meta.defaults[status], detail: undefined })
                           }
                           options={[
                             { value: "si", label: meta.options.si },
@@ -821,6 +851,8 @@ export function Publish() {
                           ]}
                         />
                       </div>
+                      {/* El texto solo se pide si eligió la opción del medio («con condiciones»). */}
+                      {current.value.trim() && current.status === "parcial" && (
                       <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
                         <input
                           type="text"
@@ -828,7 +860,7 @@ export function Publish() {
                           onChange={(e) => updateCondition(key, { value: e.target.value })}
                           placeholder="Resumen corto"
                           aria-label={`Resumen para ${meta.label}`}
-                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[15px] font-medium ring-1 ring-piedra-250 outline-none focus:ring-negro"
+                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[16px] font-medium ring-1 ring-piedra-250 outline-none focus:ring-negro"
                         />
                         <input
                           type="text"
@@ -838,9 +870,10 @@ export function Publish() {
                           }
                           placeholder="Detalle o condición (opcional)"
                           aria-label={`Detalle para ${meta.label}`}
-                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[15px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
+                          className="h-11 w-full min-w-0 rounded-ctl bg-crema-100 px-3 text-[16px] ring-1 ring-piedra-250 outline-none focus:ring-negro"
                         />
                       </div>
+                      )}
                     </div>
                   );
                 })}
@@ -935,6 +968,7 @@ export function Publish() {
                           <span className="text-[14px] text-grafito-600">USD por {d.unit}:</span>
                           <input
                             type="number"
+                            inputMode="numeric"
                             min={1}
                             step={5}
                             value={prices[d.key] || ""}
@@ -955,11 +989,53 @@ export function Publish() {
 
               <div className="border-t border-arena-200 pt-5">
                 <label className="block max-w-xs">
+                  <span className="text-[14px] font-medium text-grafito-700">Disponible desde</span>
+                  <input
+                    type="date"
+                    value={availableFrom}
+                    min={isoDay(new Date())}
+                    onChange={(e) => e.target.value && setAvailableFrom(e.target.value)}
+                    className={fieldClass}
+                  />
+                </label>
+              </div>
+
+              <div className="border-t border-arena-200 pt-5">
+                <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Depósito">
+                  {(
+                    [
+                      ["Sin depósito", 0],
+                      ["1 mes", 1],
+                      ["2 meses", 2],
+                    ] as const
+                  ).map(([label, months]) => {
+                    const value = months * (prices.mes || 0);
+                    const disabled = months > 0 && !prices.mes;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => setDeposit(value)}
+                        className={cx(
+                          "h-10 rounded-ctl px-3.5 text-[15px] font-medium ring-1 transition disabled:opacity-40",
+                          deposit === value && !disabled ? "bg-negro text-crema-100 ring-negro" : "bg-crema-100 text-negro ring-piedra-250",
+                        )}
+                        title={disabled ? "Primero pon el precio por mes" : undefined}
+                      >
+                        {label}
+                        {months > 0 && prices.mes ? ` · ${money(value)}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="block max-w-xs">
                   <span className="text-[14px] font-medium text-grafito-700">
                     Depósito reembolsable (USD)
                   </span>
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     step={25}
                     value={deposit || ""}
@@ -1083,6 +1159,17 @@ export function Publish() {
           </div>
         )}
 
+        {stepProblems.length > 0 && (
+          <div id="faltan-paso" role="alert" className="mt-10 rounded-card bg-aviso-bg px-5 py-4 text-aviso">
+            <p className="text-[15px] font-semibold">Antes de seguir, falta esto:</p>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-[15px]">
+              {stepProblems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Step navigation bar */}
         <div className="mt-12 flex items-center justify-between gap-3 border-t border-piedra-250/80 pt-6">
           {stepIndex > 0 ? (
@@ -1095,7 +1182,7 @@ export function Publish() {
             <span />
           )}
           {stepIndex < STEPS.length - 1 ? (
-            <Button variant="ink" size="lg" onClick={() => go(STEPS[stepIndex + 1].key)}>
+            <Button variant="ink" size="lg" onClick={next}>
               <span className="sm:hidden">Siguiente</span>
               <span className="hidden sm:inline">Siguiente: {STEPS[stepIndex + 1].label}</span>
               <ArrowRight className="size-4" />

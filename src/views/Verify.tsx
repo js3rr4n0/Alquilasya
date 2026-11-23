@@ -126,6 +126,7 @@ export function Verify() {
               type="button"
               onClick={async () => {
                 await logout();
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa a propósito: no debe quedar nada de la sesión anterior en memoria
                 window.location.assign("/entrar?modo=crear");
               }}
               className="text-grafito-600 underline underline-offset-4"

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
@@ -17,6 +18,16 @@ export function rateLimited(request: Request, scope: string, max: number, window
   }
   bucket.count += 1;
   return bucket.count > max;
+}
+
+/**
+ * Huella de la IP de quien pide (HMAC): sirve para límites guardados en la base sin
+ * guardar la IP. En Vercel, el primer valor de x-forwarded-for lo pone Vercel.
+ */
+export function ipFingerprint(request: Request) {
+  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "desconocida";
+  const secret = process.env.ANALYTICS_SECRET || `${process.env.DATABASE_URL ?? ""}:limites`;
+  return createHmac("sha256", secret).update(ip).digest("base64url").slice(0, 22);
 }
 
 export const tooMany = () =>

@@ -116,7 +116,7 @@ export function ZoneField({
         <select
           value={zone}
           onChange={(e) => setZone(e.target.value)}
-          className="w-full cursor-pointer appearance-none truncate bg-transparent pr-6 text-[15px] font-medium outline-none [&>option]:text-negro"
+          className="w-full cursor-pointer appearance-none truncate bg-transparent pr-6 text-[16px] font-medium outline-none [&_optgroup]:bg-crema-050 [&_optgroup]:text-grafito-700 [&_option]:bg-crema-050 [&_option]:text-negro"
         >
           <option value="">Todo El Salvador</option>
           {departments.map((d) => (
@@ -164,7 +164,7 @@ export function SearchBar({ className }: { className?: string }) {
           compact
         />
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+      <div className="mt-3 grid gap-3 sm:grid-cols-[1.35fr_1fr_auto]">
         <ZoneField />
         <DateField />
         <button

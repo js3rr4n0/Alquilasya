@@ -174,6 +174,7 @@ export function Account() {
             onClick={async () => {
               await logout();
               // Recarga completa: no queda nada de la sesión en memoria.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa a propósito: no debe quedar nada de la sesión anterior en memoria
               window.location.assign("/");
             }}
           >

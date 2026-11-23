@@ -6,6 +6,7 @@ import { Link, useParams } from "@/lib/router";
 import { Calendar, overlapsBooked } from "../components/Calendar";
 import { ConditionsLegend, ConditionsSheet } from "../components/ConditionsSheet";
 import { ContactDialog } from "../components/ContactDialog";
+import { PhotoViewer } from "../components/PhotoViewer";
 import { ReportButton } from "../components/ReportDialog";
 import { ShareButton } from "../components/ShareButton";
 import { abs } from "../lib/site";
@@ -20,7 +21,6 @@ import {
   Container,
   Eyebrow,
   Folio,
-  Modal,
 } from "../components/ui";
 import type { Listing, ListingSummary } from "../data/types";
 import {
@@ -36,6 +36,36 @@ import { cx, dateShort, dec, fromIsoDay, isoDay, m2, money, plural } from "../li
 import { photoSrcSet, photoUrl } from "../lib/photos";
 import { useListing, useStore } from "../lib/store";
 import { send } from "../lib/track";
+
+/**
+ * Una foto de la galería. «contain»: la foto entera, con la misma foto difuminada
+ * de fondo para no dejar franjas vacías (fotos verticales o pequeñas).
+ */
+function Shot({ src, alt, fit, width, eager }: { src: string; alt: string; fit: "cover" | "contain"; width: number; eager?: boolean }) {
+  if (fit === "cover") {
+    return (
+      <img
+        src={photoUrl(src, width, Math.round(width * 0.75))}
+        srcSet={photoSrcSet(src, [Math.round(width / 2), width], 0.75)}
+        sizes="(min-width: 640px) 50vw, 94vw"
+        alt={alt}
+        loading={eager ? "eager" : "lazy"}
+        className="size-full object-cover transition-transform duration-700 ease-umbral group-hover:scale-[1.03]"
+      />
+    );
+  }
+  return (
+    <>
+      <img src={photoUrl(src, 240)} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-2xl" />
+      <img
+        src={photoUrl(src, width)}
+        alt={alt}
+        loading={eager ? "eager" : "lazy"}
+        className="relative mx-auto size-full object-contain"
+      />
+    </>
+  );
+}
 
 export function ListingPage({ initial }: { initial?: Listing }) {
   const { id } = useParams();
@@ -56,7 +86,10 @@ export function ListingPage({ initial }: { initial?: Listing }) {
       .catch(() => {});
   }, [id]);
   const [contactOpen, setContactOpen] = useState(false);
-  const [galleryOpen, setGalleryOpen] = useState<string | null>(null);
+  /** Índice de la foto abierta en el visor, o null. */
+  const [galleryOpen, setGalleryOpen] = useState<number | null>(null);
+  /** Foto visible en el carrusel del teléfono. */
+  const [slide, setSlide] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
 
   const availableDurations = useMemo(
@@ -169,31 +202,82 @@ export function ListingPage({ initial }: { initial?: Listing }) {
             Quien publica aún no ha subido fotos.
           </div>
         )}
-        <div className="mt-5 grid gap-2 overflow-hidden rounded-card sm:grid-cols-4 sm:grid-rows-2">
-          {allPhotos.slice(0, 5).map((p, i) => (
-            <button
-              key={p.src}
-              type="button"
-              onClick={() => setGalleryOpen(p.src)}
-              aria-label={`Abrir foto: ${p.caption}`}
+        {allPhotos.length > 0 && (
+          <>
+            {/* Teléfono: las fotos se deslizan con el dedo, enteras, con contador. */}
+            <div className="relative mt-5 sm:hidden">
+              <div
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  setSlide(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)));
+                }}
+                className="flex snap-x snap-mandatory overflow-x-auto rounded-card no-scrollbar"
+              >
+                {allPhotos.map((p, i) => (
+                  <button
+                    key={p.src}
+                    type="button"
+                    onClick={() => setGalleryOpen(i)}
+                    aria-label={`Abrir foto: ${p.caption}`}
+                    className="relative aspect-[4/3] w-full shrink-0 snap-center overflow-hidden bg-arena-200"
+                  >
+                    <Shot src={p.src} alt={p.caption} fit="contain" width={900} eager={i === 0} />
+                  </button>
+                ))}
+              </div>
+              {allPhotos.length > 1 && (
+                <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full bg-negro/70 px-2.5 py-1 text-[13px] font-semibold tabular-nums text-crema-100">
+                  {slide + 1}/{allPhotos.length}
+                </span>
+              )}
+            </div>
+
+            {/* Computadora y tableta: la galería se adapta al número de fotos. */}
+            <div
               className={cx(
-                "group relative overflow-hidden bg-arena-200",
-                i === 0
-                  ? "aspect-[16/10] sm:col-span-2 sm:row-span-2 sm:aspect-auto sm:min-h-[420px]"
-                  : "hidden aspect-[4/3] sm:block",
+                "mt-5 hidden gap-2 overflow-hidden rounded-card sm:grid",
+                allPhotos.length === 1 && "h-[min(62vh,520px)] grid-cols-1",
+                allPhotos.length === 2 && "h-[min(56vh,460px)] grid-cols-2",
+                allPhotos.length === 3 && "h-[min(58vh,480px)] grid-cols-3 grid-rows-2",
+                allPhotos.length === 4 && "h-[min(58vh,480px)] grid-cols-4 grid-rows-2",
+                allPhotos.length >= 5 && "h-[min(58vh,480px)] grid-cols-4 grid-rows-2",
               )}
             >
-              <img
-                src={photoUrl(p.src, i === 0 ? 1400 : 700, i === 0 ? 950 : 525)}
-                srcSet={photoSrcSet(p.src, i === 0 ? [640, 1024, 1400] : [400, 700], 0.75)}
-                sizes={i === 0 ? "(min-width: 640px) 50vw, 94vw" : "24vw"}
-                alt={p.caption}
-                loading={i < 2 ? "eager" : "lazy"}
-                className="size-full object-cover transition-transform duration-700 ease-umbral group-hover:scale-[1.03]"
-              />
-            </button>
-          ))}
-        </div>
+              {allPhotos.slice(0, 5).map((p, i) => {
+                const n = Math.min(allPhotos.length, 5);
+                const big = i === 0 && n >= 3;
+                return (
+                  <button
+                    key={p.src}
+                    type="button"
+                    onClick={() => setGalleryOpen(i)}
+                    aria-label={`Abrir foto: ${p.caption}`}
+                    className={cx(
+                      "group relative overflow-hidden bg-arena-200",
+                      big && "col-span-2 row-span-2",
+                      // Con 4 fotos, la última ocupa el ancho de abajo a la derecha.
+                      n === 4 && i === 3 && "col-span-2",
+                    )}
+                  >
+                    <Shot
+                      src={p.src}
+                      alt={p.caption}
+                      // Una sola foto se ve entera (sin recortar ni agrandar de más).
+                      fit={n === 1 ? "contain" : "cover"}
+                      width={i === 0 ? 1400 : 700}
+                      eager={i < 2}
+                    />
+                    {i === 4 && allPhotos.length > 5 && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-negro/55 text-[18px] font-semibold text-crema-100">
+                        +{allPhotos.length - 5} fotos
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-[14px] text-grafito-600">
@@ -204,9 +288,9 @@ export function ListingPage({ initial }: { initial?: Listing }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setGalleryOpen(allPhotos[0]?.src ?? null)}
+                onClick={() => setGalleryOpen(0)}
               >
-                Ver las {allPhotos.length} fotos
+                {allPhotos.length === 1 ? "Ver la foto" : `Ver las ${allPhotos.length} fotos`}
               </Button>
             )}
             <ShareButton
@@ -628,30 +712,10 @@ export function ListingPage({ initial }: { initial?: Listing }) {
         start={isoDay(effectiveStart)}
       />
 
-      {/* Lightbox */}
-      <Modal
-        open={Boolean(galleryOpen)}
-        onClose={() => setGalleryOpen(null)}
-        wide
-        label={`Fotos de ${listing.title}`}
-        title={`${listing.title} · ${allPhotos.length} fotos`}
-      >
-        <div className="grid gap-6 p-5 sm:p-6 md:grid-cols-2">
-          {allPhotos.map((p) => (
-            <figure key={p.src} className="overflow-hidden rounded-card bg-arena-200">
-              <img
-                src={photoUrl(p.src, 1200, 900)}
-                alt={p.caption}
-                loading="lazy"
-                className="aspect-[4/3] w-full object-cover"
-              />
-              <figcaption className="bg-crema-100 px-3.5 py-2.5 text-[14px] text-grafito-700">
-                {p.caption}
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </Modal>
+      {/* Visor a pantalla completa */}
+      {galleryOpen !== null && (
+        <PhotoViewer photos={allPhotos} start={galleryOpen} onClose={() => setGalleryOpen(null)} title={listing.title} />
+      )}
     </div>
   );
 }
