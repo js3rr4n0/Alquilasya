@@ -132,18 +132,43 @@ export const PHOTO = {
 
 export type PhotoKey = keyof typeof PHOTO;
 
-const isRemoteOrLocal = (src: string) => /^(blob:|data:|https?:)/.test(src);
+const NO_PHOTO = "/sin-foto.svg";
 
-/** Accepts an Unsplash photo id, a PHOTO key, or a full/blob URL. */
+/** Solo se muestran fotos de estos sitios: las que suben los dueños (Vercel Blob) y las del ejemplo. */
+const PHOTO_HOST = /^([a-z0-9-]+\.public\.blob\.vercel-storage\.com|images\.unsplash\.com)$/;
+
+/**
+ * Dirección segura para una foto, o null. Las fotos vienen de datos del anuncio o del
+ * borrador guardado en el navegador: nunca se usan tal cual. Se aceptan solo https en
+ * los sitios permitidos o archivos propios, y la dirección se arma de nuevo desde cero
+ * (así nada como «javascript:» o «data:» llega nunca a un <img>).
+ */
+function safeRemote(src: string): string | null {
+  // Archivo propio («/sin-foto.svg»), nunca «//otro-sitio».
+  if (/^\/[a-z0-9_.-][a-z0-9/_.-]*$/i.test(src)) return src;
+  if (!src.startsWith("https://")) return null;
+  try {
+    const u = new URL(src);
+    if (u.protocol !== "https:" || u.username || u.password || u.port || !PHOTO_HOST.test(u.hostname)) return null;
+    return `https://${u.hostname}${u.pathname}${u.search}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Accepts an Unsplash photo id, a PHOTO key, or a full URL on an allowed host. */
 export function photoUrl(src: string, w = 1200, h?: number) {
-  if (!src) return "/sin-foto.svg";
-  if (isRemoteOrLocal(src) || src.startsWith("/")) return src;
+  if (!src) return NO_PHOTO;
+  if (/^(https:|\/)/.test(src)) return safeRemote(src) ?? NO_PHOTO;
   const id = (PHOTO as Record<string, string>)[src] ?? src;
-  return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}${h ? `&h=${h}` : ""}&q=80`;
+  // Un id de Unsplash solo tiene dígitos, letras y guiones.
+  if (!/^[0-9]+-[0-9a-f]+$/i.test(id)) return NO_PHOTO;
+  return `https://images.unsplash.com/photo-${encodeURIComponent(id)}?auto=format&fit=crop&w=${w}${h ? `&h=${h}` : ""}&q=80`;
 }
 
 export function photoSrcSet(src: string, widths = [480, 800, 1200, 1800], ratio?: number) {
-  if (!src || isRemoteOrLocal(src) || src.startsWith("/")) return undefined;
+  if (!src || /^(https:|\/|blob:|data:)/.test(src)) return undefined;
+  if (photoUrl(src) === NO_PHOTO) return undefined;
   return widths
     .map((w) => `${photoUrl(src, w, ratio ? Math.round(w * ratio) : undefined)} ${w}w`)
     .join(", ");
