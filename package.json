@@ -10,7 +10,7 @@
     "db:migrate": "node scripts/migrate.mjs --strict"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.4.0",
+    "@hookform/resolvers": "^7.0.7",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.9.0",
