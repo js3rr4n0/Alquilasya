@@ -33,7 +33,7 @@ const PROFANITY = [
 ];
 
 // Contenido sexual o servicios que no son alquiler de vivienda.
-const SEXUAL = ["sexo", "sexual", "porno", "xxx", "desnud*", "prostitu*", "escort", "erotic*", "onlyfans"];
+const SEXUAL = ["sexo", "sexual", "porno", "desnud*", "prostitu*", "escort", "erotic*", "onlyfans"];
 
 // Discriminación: excluir personas por raza, religión, orientación o nacionalidad
 // («no se aceptan extranjeros», «prohibido gays», «solo blancos»…).
@@ -79,6 +79,11 @@ function textReasons(raw: string): string[] {
   if (bad) reasons.push(`Lenguaje ofensivo («${bad}»)`);
   const sex = hasTerm(text, SEXUAL);
   if (sex) reasons.push(`Contenido sexual («${sex}»)`);
+  // «xxx» se mira aparte: normalize junta letras repetidas (putaaa→puta), así que
+  // «xxx» se volvería «x» y marcaría cualquier «x» suelta (x mes, 10 x 8, x estrenar).
+  else if (/(^|[^a-z0-9])x{3,}([^a-z0-9]|$)/i.test(raw.normalize("NFD").replace(/\p{Diacritic}/gu, ""))) {
+    reasons.push("Contenido sexual («xxx»)");
+  }
   const disc = text.match(DISCRIMINATION);
   if (disc) reasons.push(`Posible discriminación («${disc[2]}»)`);
   const scam = hasTerm(text, SCAM);
