@@ -7,7 +7,11 @@ import { Badge, Button, ButtonLink, Container, Switch } from "../components/ui";
 import { fieldClass } from "../components/WaitlistForm";
 import { PLANS, usd, type PlanId } from "../lib/plans";
 import { abs } from "../lib/site";
+import { FounderBadge } from "../components/HostFacts";
+import { ReviewNotice } from "../components/ReviewNotice";
 import { ShareButton } from "../components/ShareButton";
+import type { ListingReview } from "../data/types";
+import { memberSince } from "../lib/founder";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useStore, type Account as User } from "../lib/store";
 
@@ -23,6 +27,8 @@ type ListingRow = {
   created_at: string;
   featured_until: string | null;
   review_reason: string | null;
+  /** En revisión: cada motivo con el campo exacto donde se corrige. */
+  review: ListingReview | null;
 };
 type PaymentRow = { id: string; listing_title: string; plan: PlanId; amount: string; paid_at: string | null };
 
@@ -153,6 +159,15 @@ export function Account() {
           <h1 className="serif mt-3 text-[44px] leading-[0.98] sm:text-[56px]">
             Hola, {user.name.split(" ")[0]}.
           </h1>
+          {user.since && (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-[15px] text-grafito-600">
+              {user.founder && <FounderBadge />}
+              <span>
+                En AlquilasYa desde {memberSince(user.since)}
+                {user.founder && ". Te registraste antes de 2027: la insignia sale en tus anuncios y en el chat"}.
+              </span>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {user.admin && (
@@ -240,11 +255,8 @@ export function Account() {
                         {l.type} · {l.zone}, {l.region}
                         {l.price_month ? ` · $${Number(l.price_month)} / mes` : ""}
                       </p>
-                      {l.status === "pendiente" && l.review_reason ? (
-                        <p className="mt-0.5 text-[14px] text-aviso">
-                          <strong className="font-semibold">Qué corregir:</strong> {l.review_reason}. Usa «Editar» y se
-                          publica solo al guardar.
-                        </p>
+                      {l.status === "pendiente" && l.review ? (
+                        <ReviewNotice listingId={l.id} review={l.review} variant="inline" />
                       ) : (
                         <p className="mt-0.5 text-[14px] text-grafito-600">{STATUS[l.status].hint}</p>
                       )}

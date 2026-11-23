@@ -6,7 +6,9 @@ import { Link, useParams } from "@/lib/router";
 import { Calendar, overlapsBooked } from "../components/Calendar";
 import { ConditionsLegend, ConditionsSheet } from "../components/ConditionsSheet";
 import { ContactDialog } from "../components/ContactDialog";
+import { HostFacts } from "../components/HostFacts";
 import { PhotoViewer } from "../components/PhotoViewer";
+import { ReviewNotice } from "../components/ReviewNotice";
 import { ReportButton } from "../components/ReportDialog";
 import { ShareButton } from "../components/ShareButton";
 import { abs } from "../lib/site";
@@ -175,16 +177,20 @@ export function ListingPage({ initial }: { initial?: Listing }) {
 
   return (
     <div className="pb-20 lg:pb-0">
-      {pending && (
-        <div className="border-b border-piedra-250/80 bg-aviso-bg">
-          <Container className="py-3 text-[15px] text-aviso">
-            <strong className="font-semibold">
-              {listing.status === "pendiente" ? "Tu anuncio está en revisión." : "Este anuncio no está publicado."}
-            </strong>{" "}
-            {listing.status === "pendiente" &&
-              "Solo tú puedes verlo con tu cuenta. Nuestro filtro automático encontró algo que revisar; en tu cuenta ves el motivo. Corrígelo con «Editar» y se publica solo, o espera a que lo revisemos."}
-          </Container>
-        </div>
+      {listing.review ? (
+        // Aviso fijo con «Corregir»: lleva al paso y al campo exactos.
+        <ReviewNotice listingId={listing.id} review={listing.review} variant="bar" />
+      ) : (
+        pending && (
+          <div className="border-b border-piedra-250/80 bg-aviso-bg">
+            <Container className="py-3 text-[15px] text-aviso">
+              <strong className="font-semibold">
+                {listing.status === "pendiente" ? "Tu anuncio está en revisión." : "Este anuncio no está publicado."}
+              </strong>{" "}
+              {listing.status === "pendiente" && "Solo tú puedes verlo con tu cuenta. Lo revisamos y te avisamos por correo."}
+            </Container>
+          </div>
+        )
       )}
       {/* ——— PHOTO FIRST (no text overlaid on photography) ——— */}
       <Container className="pt-6 lg:pt-8">
@@ -504,15 +510,16 @@ export function ListingPage({ initial }: { initial?: Listing }) {
             <section aria-labelledby="dueno-h" className="border-t border-piedra-250/80 pt-12">
               <Eyebrow index="07">Quién alquila</Eyebrow>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-5 rounded-card bg-crema-050 p-6 ring-1 ring-arena-200 sm:p-7">
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 items-center gap-4">
                   <Avatar name={ownerName} size={56} />
-                  <div>
+                  <div className="min-w-0">
                     <h2 id="dueno-h" className="head text-[24px]">
                       {ownerName}.
                     </h2>
                     <p className="mt-0.5 text-[15px] text-grafito-600">
                       {"Alquila directamente, sin intermediarios"}
                     </p>
+                    {listing.host && <HostFacts host={listing.host} className="mt-2.5" />}
                   </div>
                 </div>
                 <Button variant="outline" onClick={ask}>
@@ -653,6 +660,12 @@ export function ListingPage({ initial }: { initial?: Listing }) {
                     Escribir al propietario <ArrowRight className="size-4" />
                   </Button>
                 </div>
+                {listing.host && (
+                  <div className="mt-4 border-t border-arena-200 pt-3.5">
+                    <p className="text-[14px] font-semibold text-negro">Publica {ownerName}</p>
+                    <HostFacts host={listing.host} compact className="mt-1" />
+                  </div>
+                )}
 
                 <p className="mt-4 text-[14px] leading-snug text-grafito-600">
                   El pago y el contrato se acuerdan directamente con el propietario. AlquilasYa no

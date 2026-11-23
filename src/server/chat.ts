@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { AuthError, type User } from "./auth";
 import { mailConfigured, sendNewMessageNotice } from "./mail";
 import { allow } from "./throttle";
+import { FOUNDER_UNTIL } from "@/lib/founder";
 
 /**
  * Chat privado entre quien busca y quien publica. Una conversación por anuncio
@@ -119,6 +120,10 @@ export async function listConversations(userId: string) {
             l.data->>'cover' AS cover, l.price_month,
             (c.owner_id = $1) AS i_am_owner,
             other.name AS other_name,
+            -- Solo mes y año (hora de El Salvador): es lo único que se muestra.
+            to_char(other.created_at AT TIME ZONE 'America/El_Salvador', 'YYYY-MM') || '-15T12:00:00Z' AS other_since,
+            (other.email_verified_at IS NOT NULL) AS other_verified,
+            (other.created_at < $2) AS other_founder,
             c.last_message_at,
             last.body AS last_body,
             (last.sender_id = $1) AS last_mine,
@@ -135,8 +140,29 @@ export async function listConversations(userId: string) {
       WHERE c.renter_id = $1 OR c.owner_id = $1
       ORDER BY c.last_message_at DESC
       LIMIT 100`,
-    [userId],
+    [userId, FOUNDER_UNTIL],
   );
+}
+
+/* ——— Respuestas rápidas propias ——— */
+
+export const repliesInput = z.object({
+  replies: z
+    .array(z.string().trim().min(1, "La respuesta está vacía").max(300, "La respuesta es muy larga"))
+    .max(12, "Puedes guardar hasta 12 respuestas"),
+});
+
+export async function getReplies(userId: string): Promise<string[]> {
+  const rows = await query<{ quick_replies: string[] | null }>("SELECT quick_replies FROM users WHERE id = $1", [userId]);
+  const list = rows[0]?.quick_replies;
+  return Array.isArray(list) ? list.filter((r) => typeof r === "string") : [];
+}
+
+export async function saveReplies(userId: string, replies: string[]) {
+  // Sin repetidas, en el orden en que se guardaron.
+  const unique = [...new Set(replies)];
+  await query("UPDATE users SET quick_replies = $2::jsonb WHERE id = $1", [userId, JSON.stringify(unique)]);
+  return unique;
 }
 
 export async function unreadCount(userId: string) {

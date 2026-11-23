@@ -199,11 +199,14 @@ export function PlanEditor({
   onChange,
   onReset,
   title,
+  focusRoomId,
 }: {
   floors: Floor[];
   onChange: (next: Floor[]) => void;
   onReset?: () => void;
   title: string;
+  /** Espacio a abrir de entrada (desde «Corregir»). */
+  focusRoomId?: string;
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const [floorIdx, setFloorIdx] = useState(0);
@@ -211,6 +214,16 @@ export function PlanEditor({
   const [selectedId, setSelectedId] = useState<string | null>(floor?.rooms[0]?.id ?? null);
   const [mode, setMode] = useState<"editar" | "inquilino">("editar");
   const compact = useCompact();
+  // «Corregir» un espacio: se abre su planta y su ficha.
+  useEffect(() => {
+    if (!focusRoomId) return;
+    const at = floors.findIndex((f) => f.rooms.some((r) => r.id === focusRoomId));
+    if (at === -1) return;
+    setFloorIdx(at);
+    setSelectedId(focusRoomId);
+    // Solo cuando cambia el espacio pedido, no con cada edición del plano.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRoomId]);
   const [adding, setAdding] = useState(false);
   // En el teléfono, al elegir un espacio se lleva la vista a su ficha abierta
   // (no al cargar: la página no debe saltar sola).
@@ -533,7 +546,7 @@ export function PlanEditor({
   const missingPhotos = floor.rooms.filter((r) => r.photos.length === 0);
 
   const roomEditor = selected ? (
-            <div>
+            <div data-campo={`espacio-${selected.id}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="label text-terracota-700">Espacio seleccionado</span>
                 <div className="flex items-center gap-1">

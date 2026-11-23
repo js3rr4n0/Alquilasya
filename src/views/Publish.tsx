@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { ArrowLeft, ArrowRight, Check, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ImagePlus, Loader2, Lock, Plus, Trash2, Wrench } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link, useNavigate, useSearchParams } from "@/lib/router";
@@ -18,6 +18,7 @@ import type {
   Floor,
   Included,
   Listing,
+  ListingReview,
   PropertyType,
 } from "../data/types";
 import { DURATIONS, type DurationKey } from "../lib/durations";
@@ -83,6 +84,12 @@ export function Publish() {
   );
   const step: StepKey = STEPS.some((s) => s.key === stepParam) ? stepParam! : "datos";
   const stepIndex = STEPS.findIndex((s) => s.key === step);
+  /** Campo a corregir, si se llegó desde «Corregir» (`?campo=`). */
+  const campo = params.get("campo");
+  /** Lo que marcó el filtro al guardar, si el anuncio está en revisión. */
+  const [review, setReview] = useState<ListingReview | null>(null);
+  /** El borrador ya se leyó: antes de eso no se sabe qué pasos están completos. */
+  const [hydrated, setHydrated] = useState(false);
 
   const [title, setTitle] = useState("");
   const [type, setType] = useState<PropertyType>("Casa");
@@ -159,6 +166,8 @@ export function Publish() {
       setDraftAt(d.savedAt ?? null);
     } catch {
       /* borrador dañado o sin almacenamiento: se empieza de cero */
+    } finally {
+      setHydrated(true);
     }
     // Solo al abrir el formulario.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,6 +233,7 @@ export function Publish() {
           setContactName(d.contact.name);
           setContactWhatsapp(d.contact.whatsapp);
           setContactEmail(d.contact.email);
+          setReview(l.review ?? null);
           setEditState("ready");
         },
       )
@@ -233,10 +243,10 @@ export function Publish() {
     };
   }, [editing, user?.verified]);
 
-  function go(next: StepKey) {
+  function go(next: StepKey, field?: string) {
     setStepProblems([]);
-    setParams(editing ? { paso: next, editar: editing } : { paso: next });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setParams({ paso: next, ...(editing ? { editar: editing } : {}), ...(field ? { campo: field } : {}) });
+    if (!field) window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const allRooms = floors.flatMap((f) => f.rooms);
@@ -312,6 +322,60 @@ export function Publish() {
   function missing() {
     return STEPS.flatMap((st) => missingFor(st.key).map((m) => `${m} (paso ${Number(st.n)})`));
   }
+
+  /**
+   * Hasta qué paso se puede llegar: no se pasa a la pestaña siguiente sin completar
+   * la actual, así nadie descubre al final que le faltaba algo del principio.
+   */
+  const reachable = (() => {
+    const i = STEPS.findIndex((st) => missingFor(st.key).length > 0);
+    return i === -1 ? STEPS.length - 1 : i;
+  })();
+
+  /** Muestra, en el paso donde falta, qué hay que completar. */
+  function showMissing(at: number) {
+    if (at !== stepIndex) go(STEPS[at].key);
+    window.setTimeout(() => {
+      setStepProblems(missingFor(STEPS[at].key));
+      window.setTimeout(() => document.getElementById("faltan-paso")?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
+    }, at !== stepIndex ? 60 : 0);
+  }
+
+  /** Pestañas: atrás siempre; adelante solo si todo lo anterior está completo. */
+  function jump(i: number) {
+    if (i <= reachable || i <= stepIndex) return go(STEPS[i].key);
+    showMissing(reachable);
+  }
+
+  const ready = editing ? editState === "ready" : hydrated;
+  // Tampoco se salta un paso escribiendo la dirección (?paso=…) a mano.
+  useEffect(() => {
+    if (ready && stepIndex > reachable) showMissing(reachable);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, stepIndex, reachable]);
+
+  // «Corregir»: se abre el paso, se lleva la vista al campo exacto y se marca hasta que lo cambien.
+  useEffect(() => {
+    if (!ready || !campo) return;
+    let tries = 0;
+    let el: HTMLElement | null = null;
+    const clear = () => el?.classList.remove("campo-corregir");
+    const t = window.setInterval(() => {
+      el = document.querySelector<HTMLElement>(`[data-campo="${CSS.escape(campo)}"]`);
+      if (!el && ++tries < 20) return;
+      window.clearInterval(t);
+      if (!el) return;
+      el.classList.add("campo-corregir");
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const input = el.matches("input, textarea, select") ? el : el.querySelector<HTMLElement>("input, textarea, select");
+      input?.focus({ preventScroll: true });
+      el.addEventListener("input", clear, { once: true });
+    }, 100);
+    return () => {
+      window.clearInterval(t);
+      clear();
+    };
+  }, [ready, campo, step]);
 
   /** «Siguiente»: si falta algo de este paso, se dice aquí mismo y no se avanza. */
   function next() {
@@ -391,8 +455,8 @@ export function Publish() {
         }
       }
       if (data.status === "publicada") toast.success(editing ? "Cambios guardados y publicados." : "¡Listo! Tu anuncio ya está publicado.");
-      else if (data.status === "pendiente" && data.reasons?.length)
-        toast.warning(`Tu anuncio quedó en revisión: ${data.reasons.join(" · ")}. Corrígelo con «Editar» y se publica solo.`, { duration: 12000 });
+      // El motivo y el botón «Corregir» quedan fijos arriba de la ficha, no en un aviso que se va solo.
+      else if (data.status === "pendiente" && data.reasons?.length) toast.warning("Tu anuncio quedó en revisión. Arriba te decimos qué corregir.");
       else toast.success("Cambios guardados.");
       navigate(`/casa/${data.id}`);
     } catch (error) {
@@ -469,20 +533,25 @@ export function Publish() {
           >
             {STEPS.map((s, i) => {
               const active = s.key === step;
-              const done = i < stepIndex;
+              const done = !active && i < reachable;
+              const locked = ready && i > reachable && i > stepIndex;
               return (
                 <button
                   key={s.key}
                   type="button"
-                  onClick={() => go(s.key)}
+                  onClick={() => jump(i)}
                   aria-current={active ? "step" : undefined}
+                  aria-disabled={locked || undefined}
+                  title={locked ? `Completa primero «${STEPS[reachable].label}»` : undefined}
                   className={cx(
                     "flex shrink-0 flex-col rounded-ctl p-3 text-left ring-1 transition-colors max-sm:min-w-[140px] max-sm:py-2.5",
                     active
                       ? "bg-crema-100 text-negro ring-crema-100"
                       : done
                         ? "bg-crema-100/[0.08] text-crema-100 ring-crema-100/25 hover:bg-crema-100/12"
-                        : "bg-crema-100/[0.04] text-piedra-300 ring-crema-100/12 hover:text-crema-100",
+                        : locked
+                          ? "cursor-not-allowed bg-crema-100/[0.02] text-piedra-400 ring-crema-100/10"
+                          : "bg-crema-100/[0.04] text-piedra-300 ring-crema-100/12 hover:text-crema-100",
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -494,7 +563,8 @@ export function Publish() {
                     >
                       {s.n}
                     </span>
-                    {done && <Check className="size-3.5" />}
+                    {done && <Check className="size-3.5" aria-label="Completo" />}
+                    {locked && <Lock className="size-3.5" aria-label="Bloqueado hasta completar el paso anterior" />}
                   </div>
                   <span className="mt-1 text-[14px] font-semibold">{s.label}</span>
                 </button>
@@ -505,6 +575,32 @@ export function Publish() {
       </section>
 
       <Container className="py-10 lg:py-14">
+        {review && !review.reported && review.issues.length > 0 && (
+          <div role="status" className="mb-8 rounded-card bg-aviso-bg px-5 py-4 text-aviso">
+            <p className="flex items-center gap-2 text-[15px] font-semibold">
+              <Wrench className="size-4" aria-hidden /> Corrige esto y tu anuncio se publica solo al guardar:
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {review.issues.map((issue) => {
+                const here = issue.field === campo;
+                return (
+                  <li key={`${issue.reason}-${issue.field}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[15px]">
+                    <span className={cx(here && "font-semibold")}>
+                      {issue.reason} <span className="text-grafito-600">· en {issue.where}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => go(issue.step, issue.field)}
+                      className="inline-flex items-center gap-1 font-semibold underline underline-offset-4"
+                    >
+                      {here ? "Ver de nuevo" : "Ir al campo"} <ArrowRight className="size-3.5" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
         {!editing && (
           <p className="-mt-4 mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-grafito-600">
             <span>
@@ -528,7 +624,7 @@ export function Publish() {
               <h2 className="head text-[28px]">Cómo se llama y dónde está.</h2>
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <label className="block sm:col-span-2">
+                <label className="block sm:col-span-2" data-campo="titulo">
                   <span className="text-[14px] font-medium text-grafito-700">Título del anuncio</span>
                   <span className="mt-0.5 block text-[14px] text-grafito-600">
                     Es lo primero que se lee en los resultados. Corto y claro.
@@ -612,7 +708,7 @@ export function Publish() {
                   )}
                 </label>
 
-                <label className="block">
+                <label className="block" data-campo="colonia">
                   <span className="text-[14px] font-medium text-grafito-700">
                     Colonia o residencial (opcional)
                   </span>
@@ -681,6 +777,7 @@ export function Publish() {
                   </div>
                   <textarea
                     id="descripcion"
+                    data-campo="descripcion"
                     rows={7}
                     value={description}
                     maxLength={3000}
@@ -803,12 +900,15 @@ export function Publish() {
                 <span className="hidden lg:inline">Arrastra cada espacio, pon sus metros y sube sus fotos.</span>
               </h2>
             </div>
-            <PlanEditor
-              floors={floors}
-              onChange={setFloors}
-              onReset={() => setFloors(starterFloors())}
-              title={title}
-            />
+            <div data-campo="plano">
+              <PlanEditor
+                floors={floors}
+                onChange={setFloors}
+                onReset={() => setFloors(starterFloors())}
+                title={title}
+                focusRoomId={campo?.startsWith("espacio-") ? campo.slice("espacio-".length) : undefined}
+              />
+            </div>
           </div>
         )}
 
@@ -830,7 +930,7 @@ export function Publish() {
                   const meta = CONDITIONS[key];
                   const current = conditions.find((c) => c.key === key)!;
                   return (
-                    <div key={key} className="min-w-0 rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
+                    <div key={key} data-campo={`condicion-${key}`} className="min-w-0 rounded-card bg-crema-050 p-5 ring-1 ring-arena-200">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <span className="text-[14px] font-medium text-terracota-700">{meta.label}</span>
@@ -880,7 +980,7 @@ export function Publish() {
               </div>
             </div>
 
-            <div className="rounded-card bg-crema-050 p-6 ring-1 ring-arena-200 sm:p-8">
+            <div data-campo="reglas" className="rounded-card bg-crema-050 p-6 ring-1 ring-arena-200 sm:p-8">
               <Eyebrow>Reglas de convivencia</Eyebrow>
               <h3 className="head mt-2 text-[24px]">Lo cotidiano que conviene saber antes.</h3>
               <ul className="mt-4 space-y-2">
@@ -945,6 +1045,7 @@ export function Publish() {
                   return (
                     <div
                       key={d.key}
+                      data-campo={`precio-${d.key}`}
                       className={cx(
                         "flex flex-wrap items-center justify-between gap-4 rounded-ctl p-4 ring-1",
                         enabled ? "bg-crema-100 ring-negro" : "bg-arena-200/60 ring-piedra-250",
@@ -1047,7 +1148,7 @@ export function Publish() {
               </div>
             </div>
 
-            <div className="rounded-card bg-crema-050 p-6 ring-1 ring-arena-200 sm:p-8">
+            <div data-campo="incluye" className="rounded-card bg-crema-050 p-6 ring-1 ring-arena-200 sm:p-8">
               <Eyebrow>Qué incluye ese total</Eyebrow>
               <h3 className="head mt-2 text-[22px]">Marca lo que va dentro del precio.</h3>
               <ul className="mt-4 divide-y divide-arena-200 border-y border-arena-200">

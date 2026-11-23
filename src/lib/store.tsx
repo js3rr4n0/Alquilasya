@@ -13,6 +13,10 @@ export type Account = {
   verified: boolean;
   admin: boolean;
   notices?: boolean;
+  /** Cuándo creó la cuenta (ISO). */
+  since?: string;
+  /** Insignia «Miembro fundador» (cuenta creada antes de 2027). */
+  founder?: boolean;
 };
 
 /** Preferencias de búsqueda y favoritos: viven en este navegador. */
