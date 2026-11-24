@@ -30,7 +30,6 @@ export const metadata: Metadata = {
     "alquiler directo con dueño",
     "publicar casa en alquiler gratis",
   ],
-  alternates: { canonical: "/" },
   openGraph: {
     title: "AlquilasYa · Todo claro antes de entrar",
     description: SITE_DESCRIPTION,

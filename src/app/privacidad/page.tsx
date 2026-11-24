@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacidad y términos",
   description: "Qué datos guarda AlquilasYa, para qué los usa y cómo pedir que se borren.",
+  alternates: { canonical: "/privacidad" },
 };
 
 const SECTIONS = [

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { abs, FAQ, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import type { ListingSummary } from "@/data/types";
@@ -6,6 +7,9 @@ import { searchListings, searchParams } from "@/server/search";
 import { Home } from "@/views/Home";
 
 export const revalidate = 300;
+
+// Cada página declara su canonical; el layout ya no lo impone a todas.
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 /** Los anuncios más recientes van en el HTML: así los ven los buscadores sin ejecutar nada. */
 async function latest(): Promise<ListingSummary[]> {
